@@ -1,14 +1,15 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+from app.infrastructure.web_search.base import WebSearchClientBase, WebSearchResult
+from app.infrastructure.web_search.duckduckgo import DuckDuckGoSearchClient
 from app.utils.chunking import split_text
 from app.workflow.nodes.document_grading import parse_grade
 from app.workflow.nodes.hallucination_check import parse_hallucination_check
+from app.workflow.nodes.web_search import web_search_node
 from app.workflow.routing import route_after_grading, route_after_hallucination_check
 from app.workflow.state import DocumentChunk
-from app.workflow.nodes.web_search import web_search_node
-from app.infrastructure.web_search.base import WebSearchResult, WebSearchClientBase
-from app.infrastructure.web_search.duckduckgo import DuckDuckGoSearchClient
 
 
 # 1. Test split_text

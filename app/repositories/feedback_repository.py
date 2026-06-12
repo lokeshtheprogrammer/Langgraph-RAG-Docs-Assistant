@@ -1,8 +1,6 @@
 import json
 import sqlite3
-import json
-from typing import Optional
-from app.core.logging import logger
+
 from app.core.exceptions import DatabaseError
 from app.core.logging import logger
 
@@ -35,7 +33,7 @@ class FeedbackRepository:
             raise DatabaseError(f"Database write failed: {e}")
 
     @staticmethod
-    def list_feedback(conn: sqlite3.Connection, rating: Optional[str] = None, limit: int = 50, offset: int = 0) -> list[dict]:
+    def list_feedback(conn: sqlite3.Connection, rating: str | None = None, limit: int = 50, offset: int = 0) -> list[dict]:
         if rating and rating != "all":
             query = "SELECT * FROM feedback WHERE rating = ? ORDER BY created_at DESC LIMIT ? OFFSET ?"
             params = (rating, limit, offset)
@@ -60,7 +58,7 @@ class FeedbackRepository:
             raise DatabaseError(f"Database read failed: {e}")
 
     @staticmethod
-    def count_feedback(conn: sqlite3.Connection, rating: Optional[str] = None) -> int:
+    def count_feedback(conn: sqlite3.Connection, rating: str | None = None) -> int:
         if rating and rating != "all":
             query = "SELECT COUNT(*) FROM feedback WHERE rating = ?"
             params = (rating,)

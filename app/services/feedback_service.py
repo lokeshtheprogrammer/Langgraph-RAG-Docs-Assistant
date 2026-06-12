@@ -1,7 +1,6 @@
 import datetime
 import uuid
-import datetime
-from typing import Optional
+
 from app.api.schemas.feedback import FeedbackRequest, FeedbackResponse
 from app.core.database import get_db_connection
 from app.core.logging import logger
@@ -40,7 +39,7 @@ class FeedbackService:
             message="Thank you for your feedback."
         )
 
-    async def list_feedbacks(self, rating: Optional[str] = None, limit: int = 50, offset: int = 0) -> dict:
+    async def list_feedbacks(self, rating: str | None = None, limit: int = 50, offset: int = 0) -> dict:
         with get_db_connection() as conn:
             items = FeedbackRepository.list_feedback(conn, rating, limit, offset)
             total = FeedbackRepository.count_feedback(conn, rating)
