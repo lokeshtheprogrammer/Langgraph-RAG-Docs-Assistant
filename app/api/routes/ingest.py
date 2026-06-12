@@ -1,5 +1,6 @@
 import os
 import tempfile
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
@@ -22,9 +23,9 @@ router = APIRouter(prefix="/ingest", tags=["Ingestion"])
     }
 )
 async def ingest_document(
-    file: UploadFile | None = File(None),
-    url: str | None = Form(None),
-    service: IngestionService = Depends(get_ingestion_service)
+    file: Annotated[UploadFile | None, File()] = None,
+    url: Annotated[str | None, Form()] = None,
+    service: Annotated[IngestionService, Depends(get_ingestion_service)] = None
 ) -> IngestResponse:
     """Ingest a new document from a local file upload or scraping a public URL location."""
     

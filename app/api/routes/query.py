@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 
 from app.api.schemas.common import ErrorResponse
@@ -17,7 +19,7 @@ router = APIRouter(prefix="/query", tags=["Query"])
 )
 async def query_assistant(
     request: QueryRequest,
-    service: QueryService = Depends(get_query_service)
+    service: Annotated[QueryService, Depends(get_query_service)]
 ) -> QueryResponse:
     """Submit a natural language question and receive a grounded answer with citations."""
     try:

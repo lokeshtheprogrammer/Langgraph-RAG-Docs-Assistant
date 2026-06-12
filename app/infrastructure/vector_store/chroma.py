@@ -20,7 +20,7 @@ class ChromaVectorStore(VectorStoreBase):
             logger.info("ChromaDB persistent client initialized successfully.")
         except Exception as e:
             logger.error(f"Failed to initialize ChromaDB client: {e}")
-            raise VectorStoreError(f"ChromaDB initialization failed: {e}")
+            raise VectorStoreError(f"ChromaDB initialization failed: {e}") from e
 
     def add_chunks(self, chunks: list[DocumentChunk], embeddings: list[list[float]]) -> list[str]:
         if not chunks:

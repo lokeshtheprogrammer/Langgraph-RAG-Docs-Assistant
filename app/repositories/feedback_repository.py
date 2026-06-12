@@ -30,7 +30,7 @@ class FeedbackRepository:
             logger.info(f"Inserted feedback record: {feedback['feedback_id']} in SQLite feedback table.")
         except sqlite3.Error as e:
             logger.error(f"Failed to insert feedback: {e}")
-            raise DatabaseError(f"Database write failed: {e}")
+            raise DatabaseError(f"Database write failed: {e}") from e
 
     @staticmethod
     def list_feedback(conn: sqlite3.Connection, rating: str | None = None, limit: int = 50, offset: int = 0) -> list[dict]:
@@ -55,7 +55,7 @@ class FeedbackRepository:
             return results
         except sqlite3.Error as e:
             logger.error(f"Failed to list feedback records: {e}")
-            raise DatabaseError(f"Database read failed: {e}")
+            raise DatabaseError(f"Database read failed: {e}") from e
 
     @staticmethod
     def count_feedback(conn: sqlite3.Connection, rating: str | None = None) -> int:
@@ -71,4 +71,4 @@ class FeedbackRepository:
             return count
         except sqlite3.Error as e:
             logger.error(f"Failed to count feedback records: {e}")
-            raise DatabaseError(f"Database count failed: {e}")
+            raise DatabaseError(f"Database count failed: {e}") from e

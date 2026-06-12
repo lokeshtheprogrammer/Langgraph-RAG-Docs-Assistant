@@ -7,7 +7,7 @@ from app.core.database import initialize_db
 from app.core.exceptions import (
     DatabaseError,
     LLMProviderError,
-    RAGException,
+    RAGError,
     ValidationError,
     VectorStoreError,
 )
@@ -66,8 +66,8 @@ async def validation_error_handler(request: Request, exc: ValidationError):
         }
     )
 
-@app.exception_handler(RAGException)
-async def rag_exception_handler(request: Request, exc: RAGException):
+@app.exception_handler(RAGError)
+async def rag_exception_handler(request: Request, exc: RAGError):
     request_id = getattr(request.state, "request_id", "unknown")
     
     # Map subtypes to appropriate HTTP codes

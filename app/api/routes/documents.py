@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.schemas.documents import DocumentListResponse, DocumentRecord
@@ -30,7 +32,7 @@ async def list_indexed_documents(
 @router.delete("/{document_id}", status_code=200)
 async def delete_indexed_document(
     document_id: str,
-    service: IngestionService = Depends(get_ingestion_service)
+    service: Annotated[IngestionService, Depends(get_ingestion_service)]
 ):
     """Remove a document's registration and clean its vector embeddings chunks from the store."""
     try:
