@@ -100,8 +100,8 @@ graph TD
 
 1. **Clone and setup environment:**
    ```bash
-   git clone https://github.com/your-repo/rag-assistant.git
-   cd rag-assistant
+   git clone https://github.com/lokeshtheprogrammer/Langgraph-RAG-Docs-Assistant.git
+   cd Langgraph-RAG-Docs-Assistant
    python -m venv venv
    source venv/bin/activate  # Or `venv\Scripts\activate` on Windows
    pip install -r requirements.txt
@@ -179,6 +179,91 @@ RAG/
 └── requirements.txt         # Python dependencies
 ```
 
+## Architecture Decision Records (ADRs)
+
+### ADR-001: LangGraph StateGraph over LangChain LCEL
+
+**Context:** LangChain's LCEL (LangChain Expression Language) is the standard approach for building LLM chains, but our RAG pipeline requires cycles — when document grading fails, the query must be rewritten and retrieval re-executed, potentially multiple times.
+
+**Decision:** Use LangGraph's `StateGraph` with conditional edges and cycle support.
+
+**Rationale:**
+- LCEL pipelines are DAGs (directed acyclic graphs) — they cannot express retry loops or conditional backtracking
+- LangGraph supports cycles natively via `add_conditional_edges`, enabling the grading → rewrite → retrieval retry loop
+- The `TypedDict` state schema makes it easy to track `retry_count`, `should_fallback`, and intermediate results across nodes
+- LangGraph's `ainvoke()` provides async execution with full state traceability
+
+**Tradeoff:** LangGraph has a steeper learning curve and fewer community examples compared to LCEL chains.
+
+---
+
+### ADR-002: Local Embeddings (all-MiniLM-L6-v2) over API-Based Embeddings
+
+**Context:** Embedding models can be run locally (sentence-transformers) or via API (OpenAI `text-embedding-3-small`, Cohere).
+
+**Decision:** Use `sentence-transformers/all-MiniLM-L6-v2` running locally.
+
+**Rationale:**
+- **Zero cost**: No per-token embedding fees; critical for a submission project with unlimited test queries
+- **Zero latency variance**: Local inference is ~5ms per query vs. 100-300ms for API round-trips
+- **Offline capability**: Works without internet, simplifying reviewer setup
+- **Deterministic**: Same input always produces the same embedding, making tests reproducible
+- **384-dimensional output**: Compact vectors that are efficient for ChromaDB HNSW indexing
+
+**Tradeoff:** Lower semantic quality than OpenAI's 1536-dim embeddings for nuanced queries, but sufficient for technical documentation retrieval.
+
+---
+
+### ADR-003: ChromaDB over Pinecone / Weaviate / Qdrant
+
+**Context:** Multiple vector databases exist with varying deployment models (managed cloud vs. self-hosted).
+
+**Decision:** Use ChromaDB with local persistent storage.
+
+**Rationale:**
+- **Zero infrastructure**: No API keys, no cloud accounts, no Docker required — just `pip install chromadb`
+- **Persistent storage**: Survives process restarts via `PersistentClient` backed by SQLite + Parquet
+- **Native Python**: First-class Python API with no REST/gRPC overhead for local usage
+- **HNSW indexing**: Uses hnswlib for approximate nearest neighbor search with configurable `ef` and `M` parameters
+- **Reviewer-friendly**: Clone, install, run — no external service dependencies
+
+**Tradeoff:** Not suitable for production workloads exceeding ~1M vectors or requiring distributed search. For this assignment's corpus size (<1000 chunks), ChromaDB is ideal.
+
+---
+
+### ADR-004: SQLite over PostgreSQL
+
+**Context:** The system needs persistent storage for document metadata, user feedback, conversation history, and query logs.
+
+**Decision:** Use SQLite with `sqlite3` standard library module.
+
+**Rationale:**
+- **Zero dependency**: Ships with Python; no database server installation required
+- **Single-file database**: The entire state is in `data/app.db`, easily backed up or reset
+- **Thread-safe**: Using `sqlite3.connect()` per-request with context managers avoids connection pooling complexity
+- **Schema evolution**: Simple DDL scripts executed idempotently at startup
+- **Assignment scope**: The workload is single-user, low-concurrency — SQLite handles this effortlessly
+
+**Tradeoff:** SQLite does not support concurrent writes efficiently. A production system serving multiple users would migrate to PostgreSQL with connection pooling (e.g., asyncpg + SQLAlchemy).
+
+---
+
+### ADR-005: Recursive Character Splitting over Fixed-Size Chunking
+
+**Context:** Document chunking strategy directly impacts retrieval quality. Chunks that are too large dilute relevance; chunks that are too small lose context.
+
+**Decision:** Use LangChain's `RecursiveCharacterTextSplitter` with markdown-aware separators.
+
+**Rationale:**
+- **Structural awareness**: Splits on `\n\n` (paragraphs) → `\n` (lines) → ` ``` ` (code blocks) → `.` (sentences) → ` ` (words), preserving logical boundaries
+- **Configurable overlap**: 64-character overlap ensures context continuity across chunk boundaries
+- **512-char default size**: Balances between retrieval precision (smaller) and context richness (larger); tunable via `CHUNK_SIZE` environment variable
+- **Markdown-optimized**: The separator hierarchy naturally respects heading sections and code blocks common in technical documentation
+
+**Tradeoff:** Recursive splitting can occasionally break mid-sentence at the word-level fallback. Semantic chunking (splitting by topic similarity) would produce higher-quality chunks but adds model inference overhead during ingestion.
+
+---
+
 ## Documentation
 
 | Document | Description |
@@ -187,7 +272,6 @@ RAG/
 | [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md) | Technical decisions and system context |
 | [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) | Component design and data flow |
 | [LANGGRAPH_DESIGN.md](LANGGRAPH_DESIGN.md) | Agentic workflow routing logic |
-| [AI_ENGINEERING.md](AI_ENGINEERING.md) | Chunking strategy and LLM configuration |
 | [DATABASE_DESIGN.md](DATABASE_DESIGN.md) | Schema design and indexing strategy |
 | [API_SPECIFICATION.md](API_SPECIFICATION.md) | REST API endpoint specification |
 | [TESTING_STRATEGY.md](TESTING_STRATEGY.md) | Test coverage plan and methodology |
