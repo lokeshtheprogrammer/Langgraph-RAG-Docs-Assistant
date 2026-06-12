@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.routes import documents, feedback, health, ingest, metrics, query
+from app.api.routes import analytics, documents, feedback, health, ingest, metrics, query
 from app.core.database import initialize_db
 from app.core.exceptions import (
     DatabaseError,
@@ -117,3 +117,4 @@ app.include_router(ingest.router)
 app.include_router(documents.router)
 app.include_router(feedback.router)
 app.include_router(metrics.router)
+app.include_router(analytics.router)

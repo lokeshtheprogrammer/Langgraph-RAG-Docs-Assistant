@@ -52,12 +52,32 @@ CREATE TABLE IF NOT EXISTS chat_history (
 );
 """
 
+QUERY_LOG_TABLE_DDL = """
+CREATE TABLE IF NOT EXISTS query_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question TEXT NOT NULL,
+    query_type TEXT DEFAULT NULL,
+    rewritten_query TEXT DEFAULT NULL,
+    retry_count INTEGER DEFAULT 0,
+    is_fallback INTEGER DEFAULT 0,
+    web_search_used INTEGER DEFAULT 0,
+    hallucination_score REAL DEFAULT NULL,
+    confidence_score REAL DEFAULT NULL,
+    response_time_ms INTEGER DEFAULT NULL,
+    source_count INTEGER DEFAULT 0,
+    session_id TEXT DEFAULT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
 INDICES_DDL = [
     "CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);",
     "CREATE INDEX IF NOT EXISTS idx_documents_file_hash ON documents(file_hash);",
     "CREATE INDEX IF NOT EXISTS idx_feedback_rating ON feedback(rating);",
     "CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback(created_at);",
-    "CREATE INDEX IF NOT EXISTS idx_chat_history_session ON chat_history(session_id);"
+    "CREATE INDEX IF NOT EXISTS idx_chat_history_session ON chat_history(session_id);",
+    "CREATE INDEX IF NOT EXISTS idx_query_log_created ON query_log(created_at);",
+    "CREATE INDEX IF NOT EXISTS idx_query_log_query_type ON query_log(query_type);"
 ]
 
 @contextmanager
@@ -91,6 +111,7 @@ def initialize_db() -> None:
             cursor.execute(DOCUMENTS_TABLE_DDL)
             cursor.execute(FEEDBACK_TABLE_DDL)
             cursor.execute(CHAT_HISTORY_TABLE_DDL)
+            cursor.execute(QUERY_LOG_TABLE_DDL)
             for index_query in INDICES_DDL:
                 cursor.execute(index_query)
             logger.info("Database schemas initialized successfully.")

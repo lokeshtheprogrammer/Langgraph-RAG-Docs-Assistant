@@ -4,6 +4,7 @@ from app.api.schemas.query import DebugChunk, QueryRequest, QueryResponse, Sourc
 from app.core.database import get_db_connection
 from app.core.logging import logger
 from app.repositories.chat_history import ChatHistoryRepository
+from app.repositories.query_log_repository import QueryLogRepository
 
 
 class QueryService:
@@ -164,6 +165,25 @@ class QueryService:
         # Compute composite confidence score
         confidence = self._compute_confidence(result)
         logger.info(f"Confidence score: {confidence}")
+
+        # Log query execution for analytics (fire-and-forget)
+        try:
+            with get_db_connection() as conn:
+                QueryLogRepository.insert_log(conn, {
+                    "question": request.question[:500],
+                    "query_type": result.get("query_type"),
+                    "rewritten_query": result.get("rewritten_query", "")[:500],
+                    "retry_count": result.get("retry_count", 0),
+                    "is_fallback": 1 if result.get("should_fallback") else 0,
+                    "web_search_used": 1 if result.get("web_search_used") else 0,
+                    "hallucination_score": result.get("hallucination_score"),
+                    "confidence_score": confidence,
+                    "response_time_ms": duration_ms,
+                    "source_count": len(sources),
+                    "session_id": request.session_id,
+                })
+        except Exception as e:
+            logger.warning(f"Failed to log query execution: {e}")
 
         return QueryResponse(
             answer=answer_text,
