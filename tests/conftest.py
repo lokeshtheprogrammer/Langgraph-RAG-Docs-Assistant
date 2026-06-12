@@ -4,36 +4,11 @@ import sys
 import tempfile
 
 import pytest
-
-# Ensure workspace root is in path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Create temp directories for testing to avoid polluting real database/chromadb directories
-test_dir = tempfile.mkdtemp()
-test_db_path = os.path.join(test_dir, "test_app.db")
-test_chroma_path = os.path.join(test_dir, "test_chroma_db")
-
-# Force settings env variables before any app modules are loaded
-os.environ["SQLITE_DB_PATH"] = test_db_path
-os.environ["CHROMA_PERSIST_DIR"] = test_chroma_path
-os.environ["LLM_PROVIDER"] = "google"
-os.environ["LLM_MODEL"] = "gemini-2.5-flash"
-os.environ["GEMINI_API_KEY"] = "mock_gemini_key"
-os.environ["GROQ_API_KEY"] = "mock_groq_key"
-
-
-# Stub out heavy startup service and database initialization before importing the app
-import app.core.database
-import app.dependencies
-
-real_initialize_db = app.core.database.initialize_db
-real_initialize_services = app.dependencies.initialize_services
-
-app.dependencies.initialize_services = lambda: None
-app.core.database.initialize_db = lambda: None
-
 from fastapi.testclient import TestClient
 
+import app.core.database as app_db
+import app.dependencies as app_deps
+from app.config import settings
 from app.core.database import get_db_connection
 from app.dependencies import get_feedback_service, get_ingestion_service, get_query_service
 from app.infrastructure.embeddings.base import EmbeddingModelBase
@@ -44,6 +19,29 @@ from app.services.feedback_service import FeedbackService
 from app.services.ingestion_service import IngestionService
 from app.services.query_service import QueryService
 from app.workflow.graph import build_rag_graph
+
+# Ensure workspace root is in path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Create temp directories for testing to avoid polluting real database/chromadb directories
+test_dir = tempfile.mkdtemp()
+test_db_path = os.path.join(test_dir, "test_app.db")
+test_chroma_path = os.path.join(test_dir, "test_chroma_db")
+
+# Force settings properties before any app modules use them
+settings.SQLITE_DB_PATH = test_db_path
+settings.CHROMA_PERSIST_DIR = test_chroma_path
+settings.LLM_PROVIDER = "google"
+settings.LLM_MODEL = "gemini-2.5-flash"
+settings.GEMINI_API_KEY = "mock_gemini_key"
+settings.GROQ_API_KEY = "mock_groq_key"
+
+# Stub out heavy startup service and database initialization
+real_initialize_db = app_db.initialize_db
+real_initialize_services = app_deps.initialize_services
+
+app_deps.initialize_services = lambda: None
+app_db.initialize_db = lambda: None
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -57,11 +55,13 @@ def setup_test_environment():
     except Exception:
         pass
 
+
 @pytest.fixture
 def db_conn():
     """Provides a thread-safe connection to the test SQLite database."""
     with get_db_connection() as conn:
         yield conn
+
 
 @pytest.fixture
 def mock_llm_client():
@@ -87,6 +87,7 @@ def mock_llm_client():
             return "{}"
     return MockLLM()
 
+
 @pytest.fixture
 def mock_embeddings():
     class MockEmbeddings(EmbeddingModelBase):
@@ -96,10 +97,12 @@ def mock_embeddings():
             return [[0.1] * 384 for _ in texts]
     return MockEmbeddings()
 
+
 @pytest.fixture
 def test_vector_store():
     # Use real persistent store but pointing to temp chroma path
     return ChromaVectorStore(test_chroma_path)
+
 
 @pytest.fixture
 def client(mock_llm_client, mock_embeddings, test_vector_store):
