@@ -33,4 +33,8 @@ class QueryResponse(BaseModel):
     retrieved_chunks: list[DebugChunk] | None = Field(None, description="Raw chunks retrieved from vector store")
     graded_chunks: list[DebugChunk] | None = Field(None, description="Chunks with relevance grades")
     hallucination_score: float | None = Field(None, description="Grounding verification score (0.0-1.0)")
+    confidence_score: float | None = Field(
+        None,
+        description="Overall answer confidence (0.0-1.0) combining grounding, retrieval quality, and retry penalty"
+    )
 

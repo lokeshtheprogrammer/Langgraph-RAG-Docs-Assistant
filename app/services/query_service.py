@@ -12,6 +12,42 @@ class QueryService:
     def __init__(self, compiled_graph):
         self.graph = compiled_graph
 
+    @staticmethod
+    def _compute_confidence(result: dict) -> float:
+        """Compute a composite confidence score (0.0-1.0) from LangGraph result state.
+
+        Weighted formula:
+          - Grounding score (40%): hallucination_score from the grounding verifier
+          - Retrieval quality (40%): ratio of relevant docs to total retrieved
+          - Retry penalty (20%): penalized by retry count and fallback usage
+        """
+        # 1. Grounding component (weight: 0.4)
+        grounding = result.get("hallucination_score")
+        grounding_score = grounding if grounding is not None else 0.5  # neutral default
+
+        # 2. Retrieval quality component (weight: 0.4)
+        retrieved = result.get("retrieved_docs", [])
+        relevant = result.get("relevant_docs", [])
+        if retrieved:
+            retrieval_score = len(relevant) / len(retrieved)
+        else:
+            retrieval_score = 0.0
+
+        # 3. Retry/fallback penalty component (weight: 0.2)
+        retry_count = result.get("retry_count", 0)
+        max_retries = result.get("max_retries", 2)
+        is_fallback = result.get("should_fallback", False)
+        if is_fallback:
+            retry_score = 0.1  # heavy penalty for fallback
+        elif max_retries > 0:
+            retry_score = max(0.0, 1.0 - (retry_count / max_retries))
+        else:
+            retry_score = 1.0
+
+        # Weighted combination
+        confidence = (0.4 * grounding_score) + (0.4 * retrieval_score) + (0.2 * retry_score)
+        return round(min(1.0, max(0.0, confidence)), 3)
+
     def _load_chat_context(self, session_id: str | None) -> str:
         """Load recent conversation history for the session and format as context prefix."""
         if not session_id:
@@ -125,6 +161,10 @@ class QueryService:
                 for gd in raw_graded
             ]
 
+        # Compute composite confidence score
+        confidence = self._compute_confidence(result)
+        logger.info(f"Confidence score: {confidence}")
+
         return QueryResponse(
             answer=answer_text,
             sources=sources,
@@ -137,5 +177,6 @@ class QueryService:
             # Debug trace fields
             retrieved_chunks=retrieved_chunks,
             graded_chunks=graded_chunks,
-            hallucination_score=result.get("hallucination_score")
+            hallucination_score=result.get("hallucination_score"),
+            confidence_score=confidence
         )
