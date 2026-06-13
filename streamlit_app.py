@@ -12,6 +12,35 @@ import time
 # ─── Configuration ───────────────────────────────────────────────────────────
 API_BASE = "http://127.0.0.1:8000"
 
+# ─── Auto-Start Backend & Ingestion ──────────────────────────────────────────
+@st.cache_resource
+def start_backend_and_ingest():
+    import subprocess
+    import socket
+    
+    # Start FastAPI backend if not already running
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            is_open = s.connect_ex(("127.0.0.1", 8000)) == 0
+        if not is_open:
+            subprocess.Popen(["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"])
+            time.sleep(4)  # Allow time to initialize
+    except Exception:
+        pass
+
+    # Automatically ingest reference corpus if database is empty
+    try:
+        res = requests.get(f"{API_BASE}/documents/list")
+        if res.status_code == 200:
+            docs = res.json().get("documents", [])
+            if not docs:
+                subprocess.run(["python", "ingestion/ingest_corpus.py"])
+    except Exception:
+        pass
+
+start_backend_and_ingest()
+
+
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="RAG Documentation Assistant",
