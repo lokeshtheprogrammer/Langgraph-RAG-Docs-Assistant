@@ -7,7 +7,7 @@ The goal of this project is to build a production-grade, self-corrective Retriev
 
 ### 🌐 Live Deployment
 This submission is fully containerized and deployed on **Hugging Face Spaces** for instant review:
-- **Live Streamlit App:** [RAG Documentation Assistant on Hugging Face Spaces](https://huggingface.co/spaces/lokeshtheprogrammer/Langgraph-RAG-Docs-Assistant)
+- **Live Streamlit App:** [RAG Documentation Assistant on Hugging Face Spaces](https://huggingface.co/spaces/aimprabu/RAG_Documentation_Assistant)
 
 ---
 

@@ -6,7 +6,7 @@ Welcome, Reviewer! This guide is designed to help you verify all core features, 
 
 ### 🚀 Zero-Setup Review (Fastest)
 This application is fully containerized and deployed on **Hugging Face Spaces**! You can test it immediately without running anything locally:
-- **Live Streamlit App:** [RAG Documentation Assistant on Hugging Face Spaces](https://huggingface.co/spaces/lokeshtheprogrammer/Langgraph-RAG-Docs-Assistant)
+- **Live Streamlit App:** [RAG Documentation Assistant on Hugging Face Spaces](https://huggingface.co/spaces/aimprabu/RAG_Documentation_Assistant)
 
 ---
 

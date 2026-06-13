@@ -7,7 +7,7 @@ A production-grade, self-correcting Retrieval-Augmented Generation (RAG) assista
 
 ### 🌐 Live Deployment
 This application is fully containerized and deployed on **Hugging Face Spaces**!
-- **Live Streamlit App:** [RAG Documentation Assistant on Hugging Face Spaces](https://huggingface.co/spaces/lokeshtheprogrammer/Langgraph-RAG-Docs-Assistant)
+- **Live Streamlit App:** [RAG Documentation Assistant on Hugging Face Spaces](https://huggingface.co/spaces/aimprabu/RAG_Documentation_Assistant)
 
 ---
 
