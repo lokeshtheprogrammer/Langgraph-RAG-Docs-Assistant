@@ -885,8 +885,6 @@ def render_grounding_bar(score: float):
         <div class="ground-bar-fill ground-bar-{cls}" style="width:{pct}%"></div>
     </div>
     """
-
-
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
 with st.sidebar:
     # Brand
@@ -903,6 +901,34 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
+    # ── Upload Document (Sidebar) ───────────────────────────────────────────
+    st.markdown("""
+    <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-primary); margin-top: 8px; margin-bottom: 4px; letter-spacing: 0.5px; text-transform: uppercase;">
+        📤 Ingest Document
+    </div>
+    """, unsafe_allow_html=True)
+    sidebar_uploaded = st.file_uploader(
+        "Upload new document to knowledge base",
+        type=["md", "txt", "pdf", "html"],
+        help="Supported formats: PDF · Markdown · Text · HTML (Max 25MB)",
+        label_visibility="collapsed",
+        key="sidebar_uploader"
+    )
+    if sidebar_uploaded:
+        if st.button("Add to Assistant's Knowledge", use_container_width=True, key="sidebar_ingest_btn", type="primary"):
+            with st.spinner("Processing document..."):
+                result = upload_document(sidebar_uploaded)
+            if "error" in result:
+                st.error("Something went wrong: " + result["error"])
+            elif result.get("duplicate"):
+                st.warning("This document is already in your library!")
+            else:
+                st.success(f"Successfully added! Indexed {result.get('chunk_count', 0)} parts.")
+                time.sleep(1)
+                st.rerun()
+
+    st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
     # ── Document Center ──────────────────────────────────────────────────────
     with st.expander("⊞  Documents", expanded=False):
@@ -1313,10 +1339,6 @@ if not st.session_state.messages:
 
             if st.button("💡 What is FastAPI?", use_container_width=True, key="sugg_fastapi"):
                 st.session_state.pending_query = "What is FastAPI?"
-                st.rerun()
-                
-            if st.button("💡 Summarize this resume", use_container_width=True, key="sugg_resume"):
-                st.session_state.pending_query = "Summarize this resume"
                 st.rerun()
                 
             if st.button("💡 Compare Pydantic and Dataclasses", use_container_width=True, key="sugg_compare"):
