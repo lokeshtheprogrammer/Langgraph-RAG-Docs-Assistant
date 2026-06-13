@@ -957,14 +957,14 @@ with st.sidebar:
             st.warning("This document is already in your library!")
             st.session_state.last_indexed = {
                 "filename": sidebar_uploaded.name,
-                "chunks": result.get("chunk_count", 0) or "duplicate",
+                "chunks": result.get("chunks_indexed", 0) or "duplicate",
                 "time": "Already exists"
             }
         else:
-            st.success(f"Successfully added! Indexed {result.get('chunk_count', 0)} parts.")
+            st.success(f"Successfully added! Indexed {result.get('chunks_indexed', 0)} parts.")
             st.session_state.last_indexed = {
                 "filename": sidebar_uploaded.name,
-                "chunks": result.get("chunk_count", 0),
+                "chunks": result.get("chunks_indexed", 0),
                 "time": "Just now"
             }
             time.sleep(1)
@@ -1393,14 +1393,15 @@ if not st.session_state.messages:
                     st.warning("This document is already in your library!")
                     st.session_state.last_indexed = {
                         "filename": central_uploaded.name,
-                        "chunks": result.get("chunk_count", 0) or "duplicate",
+                        "chunks": result.get("chunks_indexed", 0) or "duplicate",
                         "time": "Already exists"
                     }
                 else:
-                    st.success(f"Successfully added! Indexed {result.get('chunk_count', 0)} parts.")
+                    n_chunks = result.get("chunks_indexed", 0)
+                    st.success(f"Successfully added! Indexed {n_chunks} parts.")
                     st.session_state.last_indexed = {
                         "filename": central_uploaded.name,
-                        "chunks": result.get("chunk_count", 0),
+                        "chunks": n_chunks,
                         "time": "Just now"
                     }
                     time.sleep(1)
