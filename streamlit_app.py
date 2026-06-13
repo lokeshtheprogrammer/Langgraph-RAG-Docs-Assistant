@@ -765,6 +765,34 @@ st.markdown("""
     div[data-testid="stVerticalBlock"]:has(.central-card-marker) [data-testid="column"]:last-child {
         padding-left: 40px !important;
     }
+
+    /* ── Knowledge Base Status Card ── */
+    .status-card {
+        background: rgba(14, 165, 233, 0.04);
+        border: 1px solid rgba(14, 165, 233, 0.18);
+        border-radius: var(--radius-sm);
+        padding: 12px 14px;
+        margin-top: 10px;
+        margin-bottom: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
+    .status-card-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        color: #38bdf8 !important;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+    }
+    .status-card-row {
+        font-size: 0.76rem;
+        color: var(--text-secondary) !important;
+        margin-bottom: 4px;
+        line-height: 1.4;
+    }
+    .status-card-row strong {
+        color: var(--text-primary) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 # ─── Chat Input Mascot Image ──────────────────────────────────────────────────
@@ -915,18 +943,58 @@ with st.sidebar:
         label_visibility="collapsed",
         key="sidebar_uploader"
     )
-    if sidebar_uploaded:
-        if st.button("Add to Assistant's Knowledge", use_container_width=True, key="sidebar_ingest_btn", type="primary"):
-            with st.spinner("Processing document..."):
-                result = upload_document(sidebar_uploaded)
-            if "error" in result:
-                st.error("Something went wrong: " + result["error"])
-            elif result.get("duplicate"):
-                st.warning("This document is already in your library!")
-            else:
-                st.success(f"Successfully added! Indexed {result.get('chunk_count', 0)} parts.")
-                time.sleep(1)
-                st.rerun()
+    if not sidebar_uploaded:
+        st.session_state.current_sidebar_file = None
+    elif sidebar_uploaded.name != st.session_state.get("current_sidebar_file"):
+        st.session_state.current_sidebar_file = sidebar_uploaded.name
+        with st.spinner("Auto-indexing document..."):
+            result = upload_document(sidebar_uploaded)
+        if "error" in result:
+            st.error("Something went wrong: " + result["error"])
+        elif result.get("duplicate"):
+            st.warning("This document is already in your library!")
+            st.session_state.last_indexed = {
+                "filename": sidebar_uploaded.name,
+                "chunks": result.get("chunk_count", 0) or "duplicate",
+                "time": "Already exists"
+            }
+        else:
+            st.success(f"Successfully added! Indexed {result.get('chunk_count', 0)} parts.")
+            st.session_state.last_indexed = {
+                "filename": sidebar_uploaded.name,
+                "chunks": result.get("chunk_count", 0),
+                "time": "Just now"
+            }
+            time.sleep(1)
+            st.rerun()
+
+    # ── Knowledge Base Status Card ──────────────────────────────────────────
+    metrics = get_metrics()
+    total_docs = metrics.get('total_documents', 0)
+    total_chunks = metrics.get('total_chunks', 0)
+    
+    li_filename = "—"
+    li_chunks = "—"
+    li_time = "—"
+    if "last_indexed" in st.session_state:
+        li_filename = st.session_state.last_indexed["filename"]
+        li_chunks = f"{st.session_state.last_indexed['chunks']} chunks"
+        li_time = st.session_state.last_indexed["time"]
+        
+    st.markdown(f"""
+    <div class="status-card">
+        <div class="status-card-title">Knowledge Base Status</div>
+        <div class="status-card-row"><strong>Documents:</strong> {total_docs}</div>
+        <div class="status-card-row"><strong>Total Chunks:</strong> {total_chunks}</div>
+        <div class="status-card-row"><strong>Database:</strong> <span style="color:var(--accent-green)">✓ Connected</span></div>
+        <div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:0.68rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px; letter-spacing:0.5px;">Last Indexed File</div>
+            <div class="status-card-row"><strong>File:</strong> <span style="color:var(--accent-indigo)">{li_filename}</span></div>
+            <div class="status-card-row"><strong>Created:</strong> {li_chunks}</div>
+            <div class="status-card-row"><strong>Time:</strong> {li_time}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
 
@@ -1309,18 +1377,30 @@ if not st.session_state.messages:
                 key="central_uploader"
             )
             
-            if central_uploaded:
-                if st.button("Add to Assistant's Knowledge", use_container_width=True, key="central_ingest_btn", type="primary"):
-                    with st.spinner("Processing document..."):
-                        result = upload_document(central_uploaded)
-                    if "error" in result:
-                        st.error("Something went wrong: " + result["error"])
-                    elif result.get("duplicate"):
-                        st.warning("This document is already in your library!")
-                    else:
-                        st.success(f"Successfully added! Indexed {result.get('chunk_count', 0)} parts.")
-                        time.sleep(1)
-                        st.rerun()
+            if not central_uploaded:
+                st.session_state.current_central_file = None
+            elif central_uploaded.name != st.session_state.get("current_central_file"):
+                st.session_state.current_central_file = central_uploaded.name
+                with st.spinner("Auto-indexing document..."):
+                    result = upload_document(central_uploaded)
+                if "error" in result:
+                    st.error("Something went wrong: " + result["error"])
+                elif result.get("duplicate"):
+                    st.warning("This document is already in your library!")
+                    st.session_state.last_indexed = {
+                        "filename": central_uploaded.name,
+                        "chunks": result.get("chunk_count", 0) or "duplicate",
+                        "time": "Already exists"
+                    }
+                else:
+                    st.success(f"Successfully added! Indexed {result.get('chunk_count', 0)} parts.")
+                    st.session_state.last_indexed = {
+                        "filename": central_uploaded.name,
+                        "chunks": result.get("chunk_count", 0),
+                        "time": "Just now"
+                    }
+                    time.sleep(1)
+                    st.rerun()
 
         with col_right:
             st.markdown(f"""
