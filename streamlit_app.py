@@ -950,7 +950,9 @@ with st.sidebar:
         with st.spinner("Auto-indexing document..."):
             result = upload_document(sidebar_uploaded)
         if "error" in result:
-            st.error("Something went wrong: " + result["error"])
+            err = result["error"]
+            err_msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+            st.error("Something went wrong: " + err_msg)
         elif result.get("duplicate"):
             st.warning("This document is already in your library!")
             st.session_state.last_indexed = {
@@ -1384,7 +1386,9 @@ if not st.session_state.messages:
                 with st.spinner("Auto-indexing document..."):
                     result = upload_document(central_uploaded)
                 if "error" in result:
-                    st.error("Something went wrong: " + result["error"])
+                    err = result["error"]
+                    err_msg = err.get("message", str(err)) if isinstance(err, dict) else str(err)
+                    st.error("Something went wrong: " + err_msg)
                 elif result.get("duplicate"):
                     st.warning("This document is already in your library!")
                     st.session_state.last_indexed = {
