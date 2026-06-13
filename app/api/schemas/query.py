@@ -19,6 +19,7 @@ class DebugChunk(BaseModel):
     source_file: str = Field(..., description="Source document filename")
     chunk_index: int = Field(..., description="Index of the chunk")
     grade: str | None = Field(None, description="Relevance grade: relevant or irrelevant")
+    distance: float | None = Field(None, description="Semantic distance score from the query")
 
 class QueryResponse(BaseModel):
     answer: str = Field(..., description="System response text with citations")
@@ -37,4 +38,6 @@ class QueryResponse(BaseModel):
         None,
         description="Overall answer confidence (0.0-1.0) combining grounding, retrieval quality, and retry penalty"
     )
+    retrieval_count: int | None = Field(None, description="Number of chunks retrieved from the vector store")
+    relevant_chunk_count: int | None = Field(None, description="Number of chunks graded as relevant")
 

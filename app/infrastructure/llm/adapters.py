@@ -61,7 +61,16 @@ class GoogleLLMAdapter(LLMClientBase):
                     timeout=self.TIMEOUT
                 )
                 logger.info("Successfully received response from Google Gemini.")
-                return response.text or ""
+                text = response.text
+                if not text or not text.strip():
+                    # Safety filter or unexpected empty finish — treat as retryable error
+                    finish = getattr(response, 'candidates', [{}])
+                    reason = finish[0].finish_reason if finish else 'UNKNOWN'
+                    raise LLMProviderError(
+                        f"Gemini returned an empty response (finish_reason={reason}). "
+                        "This may be due to a safety filter or content policy block."
+                    )
+                return text
                 
             except TimeoutError:
                 last_error = f"Request timed out after {self.TIMEOUT}s"
@@ -123,7 +132,13 @@ class GroqLLMAdapter(LLMClientBase):
                     timeout=self.TIMEOUT
                 )
                 logger.info("Successfully received response from Groq.")
-                return response.choices[0].message.content or ""
+                text = response.choices[0].message.content
+                if not text or not text.strip():
+                    raise LLMProviderError(
+                        "Groq returned an empty response. "
+                        "This may be due to a content policy block or token limit."
+                    )
+                return text
                 
             except TimeoutError:
                 last_error = f"Request timed out after {self.TIMEOUT}s"
@@ -140,12 +155,55 @@ class GroqLLMAdapter(LLMClientBase):
         raise LLMProviderError(f"Groq API failed after {self.MAX_RETRIES} attempts. Last error: {last_error}")
 
 
+class FallbackLLMAdapter(LLMClientBase):
+    """Wraps a primary LLM client and falls back to a secondary client on failure."""
+
+    def __init__(self, primary: LLMClientBase, secondary: LLMClientBase):
+        self.primary = primary
+        self.secondary = secondary
+
+    async def ainvoke(self, messages: list[dict], **kwargs) -> str:
+        try:
+            return await self.primary.ainvoke(messages, **kwargs)
+        except Exception as e:
+            logger.warning(f"Primary LLM client failed: {e}. Falling back to secondary LLM client...")
+            try:
+                return await self.secondary.ainvoke(messages, **kwargs)
+            except Exception as sec_e:
+                logger.critical(f"Secondary LLM client also failed: {sec_e}")
+                raise LLMProviderError(
+                    f"Both primary and secondary LLM providers failed.\n"
+                    f"Primary Error: {e}\n"
+                    f"Secondary Error: {sec_e}"
+                ) from sec_e
+
+
 def get_llm_client(provider: str, model_name: str) -> LLMClientBase:
     """Helper factory function to retrieve the configured LLM Client adapter."""
     provider_lower = provider.lower()
+    
+    # Check if fallback provider can be enabled
+    gemini_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
+    groq_key = settings.GROQ_API_KEY or os.getenv("GROQ_API_KEY")
+    
     if provider_lower == "google":
-        return GoogleLLMAdapter(model_name)
+        google_client = GoogleLLMAdapter(model_name)
+        if groq_key:
+            # Use a robust, fast model on Groq as secondary fallback
+            groq_client = GroqLLMAdapter("llama-3.3-70b-versatile", api_key=groq_key)
+            logger.info("Enabling automatic fallback: Google Gemini -> Groq (llama-3.3-70b-versatile).")
+            return FallbackLLMAdapter(google_client, groq_client)
+        return google_client
+        
     elif provider_lower == "groq":
-        return GroqLLMAdapter(model_name)
+        groq_client = GroqLLMAdapter(model_name)
+        if gemini_key:
+            # Use gemini-2.5-flash as secondary fallback
+            google_client = GoogleLLMAdapter("gemini-2.5-flash", api_key=gemini_key)
+            logger.info("Enabling automatic fallback: Groq -> Google Gemini (gemini-2.5-flash).")
+            return FallbackLLMAdapter(groq_client, google_client)
+        return groq_client
+        
     else:
         raise ValueError(f"Unsupported LLM provider: {provider}. Supported options: google, groq.")
+

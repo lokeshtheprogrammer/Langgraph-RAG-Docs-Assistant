@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 
 import app.core.database as app_db
 import app.dependencies as app_deps
-import app.main as app_main
 from app.config import settings
 from app.core.database import get_db_connection
 from app.dependencies import get_feedback_service, get_ingestion_service, get_query_service
@@ -43,8 +42,6 @@ real_initialize_services = app_deps.initialize_services
 
 app_deps.initialize_services = lambda: None
 app_db.initialize_db = lambda: None
-app_main.initialize_services = lambda: None
-app_main.initialize_db = lambda: None
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -143,7 +143,8 @@ class QueryService:
                     content=doc.content[:500],
                     source_file=doc.source_file,
                     chunk_index=doc.chunk_index,
-                    grade=None
+                    grade=None,
+                    distance=doc.distance
                 )
                 for doc in raw_retrieved
             ]
@@ -157,7 +158,8 @@ class QueryService:
                     content=gd.chunk.content[:500],
                     source_file=gd.chunk.source_file,
                     chunk_index=gd.chunk.chunk_index,
-                    grade=gd.grade
+                    grade=gd.grade,
+                    distance=gd.chunk.distance
                 )
                 for gd in raw_graded
             ]
@@ -194,9 +196,10 @@ class QueryService:
             is_fallback=result.get("should_fallback", False),
             response_time_ms=duration_ms,
             session_id=request.session_id,
-            # Debug trace fields
             retrieved_chunks=retrieved_chunks,
             graded_chunks=graded_chunks,
             hallucination_score=result.get("hallucination_score"),
-            confidence_score=confidence
+            confidence_score=confidence,
+            retrieval_count=len(raw_retrieved),
+            relevant_chunk_count=len(result.get("relevant_docs", []))
         )
