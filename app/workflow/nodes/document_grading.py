@@ -116,6 +116,15 @@ def document_grading_node(llm: LLMClientBase):
             
         relevant_docs = [gd.chunk for gd in graded_docs if gd.grade == "relevant"]
         
+        # Grader safeguard: If all chunks are graded irrelevant, let the top 2 retrieved chunks
+        # survive to prevent false negatives and avoid failing borderline queries.
+        if not relevant_docs and retrieved_docs:
+            logger.info("All chunks graded irrelevant. Safeguard triggered: keeping top 2 retrieved chunks to prevent false negatives.")
+            relevant_docs = retrieved_docs[:2]
+            # Update the grade in graded_docs for these top 2 chunks to keep states consistent
+            for i in range(min(2, len(retrieved_docs))):
+                graded_docs[i].grade = "relevant"
+            
         logger.info(f"Grading complete: {len(relevant_docs)} out of {len(retrieved_docs)} chunks relevant.")
         
         # Check if fallback is triggered
