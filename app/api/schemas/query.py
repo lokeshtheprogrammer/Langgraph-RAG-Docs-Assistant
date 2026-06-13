@@ -13,6 +13,7 @@ class QueryRequest(BaseModel):
     session_id: str | None = Field(None, pattern=r"^[0-9a-fA-F-]{36}$", description="UUID for conversation session memory")
     top_k: int | None = Field(5, ge=1, le=20, description="Number of context chunks to retrieve")
     max_retries: int | None = Field(None, ge=0, le=5, description="Override maximum retry count")
+    filter_filenames: list[str] | None = Field(None, description="Scope retrieval to these filenames only (uploaded document focus)")
 
 class DebugChunk(BaseModel):
     content: str = Field(..., description="Text content of the chunk")

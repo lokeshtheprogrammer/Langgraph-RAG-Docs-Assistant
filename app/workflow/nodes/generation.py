@@ -65,7 +65,7 @@ def generation_node(llm: LLMClientBase):
                 source_file=doc.source_file,
                 document_id=doc.document_id,
                 chunk_index=doc.chunk_index,
-                excerpt=doc.content[:100]
+                excerpt=doc.content[:300]
             ))
             
         context = "\n\n---\n\n".join(context_parts)

@@ -852,13 +852,15 @@ def check_api_health() -> bool:
     except Exception:
         return False
 
-def query_rag(question: str, top_k: int = 5, max_retries: int = 2) -> dict:
+def query_rag(question: str, top_k: int = 5, max_retries: int = 2, filter_filenames: list | None = None) -> dict:
     payload = {
         "question": question,
         "session_id": st.session_state.session_id,
         "top_k": top_k,
         "max_retries": max_retries,
     }
+    if filter_filenames:
+        payload["filter_filenames"] = filter_filenames
     try:
         r = requests.post(f"{API_BASE}/query", json=payload, timeout=120)
         return r.json() if r.status_code == 200 else {"error": f"API {r.status_code}: {r.text}"}
@@ -1103,6 +1105,24 @@ top_k = st.session_state.get("top_k_slider", 5)
 max_retries = st.session_state.get("retry_slider", 2)
 show_debug = st.session_state.get("debug_toggle", True)
 
+# Active document focus banner
+active_document = st.session_state.get("active_document")
+active_filter_filenames = [active_document] if active_document else None
+
+if active_document:
+    st.markdown(f"""
+    <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);
+                border-radius:10px;padding:10px 14px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:1.1rem;">🔍</span>
+        <div>
+            <span style="font-size:0.7rem;font-weight:700;color:#10b981;text-transform:uppercase;
+                        letter-spacing:0.5px;display:block;margin-bottom:2px;">Focused on uploaded document</span>
+            <span style="font-size:0.85rem;color:var(--text-secondary);">📄 <strong style='color:var(--text-primary);'>{active_document}</strong> 
+            &nbsp;&mdash;&nbsp;<span style='color:var(--text-muted);font-size:0.78rem;'>Only this file is being searched. Use ✕&nbsp;Search All Documents in the sidebar to search everything.</span></span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 # ─── Avatar SVGs ──────────────────────────────────────────────────────────────
 USER_AVATAR_SVG = """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; color:#fff;">
     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -1221,7 +1241,7 @@ if question:
 
     # Query backend
     with st.spinner(""):
-        result = query_rag(question, top_k=top_k, max_retries=max_retries)
+        result = query_rag(question, top_k=top_k, max_retries=max_retries, filter_filenames=active_filter_filenames)
 
     if "error" in result:
         answer = f"⚠ {result['error']}"

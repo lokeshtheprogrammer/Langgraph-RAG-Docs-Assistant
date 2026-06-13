@@ -4,8 +4,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     # LLM Settings
-    LLM_PROVIDER: str = Field("google", description="LLM provider: google or groq")
-    LLM_MODEL: str = Field("gemini-2.5-flash", description="Model identifier")
+    LLM_PROVIDER: str = Field("groq", description="LLM provider: google or groq")
+    LLM_MODEL: str = Field("llama-3.3-70b-versatile", description="Model identifier")
     GEMINI_API_KEY: str | None = Field(None, description="API Key for Google Gemini")
     GROQ_API_KEY: str | None = Field(None, description="API Key for Groq")
 

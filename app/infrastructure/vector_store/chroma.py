@@ -54,13 +54,19 @@ class ChromaVectorStore(VectorStoreBase):
             logger.error(f"Failed to add chunks to ChromaDB: {e}")
             raise VectorStoreError(f"Failed to write vectors: {e}") from e
 
-    def similarity_search_by_vector(self, vector: list[float], k: int = 5) -> list[DocumentChunk]:
+    def similarity_search_by_vector(
+        self, vector: list[float], k: int = 5, where_filter: dict | None = None
+    ) -> list[DocumentChunk]:
         try:
-            results = self.collection.query(
-                query_embeddings=[vector],
-                n_results=k,
-                include=["documents", "metadatas", "distances"]
-            )
+            query_kwargs: dict = {
+                "query_embeddings": [vector],
+                "n_results": k,
+                "include": ["documents", "metadatas", "distances"],
+            }
+            if where_filter:
+                query_kwargs["where"] = where_filter
+
+            results = self.collection.query(**query_kwargs)
             
             chunks = []
             if not results or not results["ids"] or not results["ids"][0]:
@@ -92,3 +98,35 @@ class ChromaVectorStore(VectorStoreBase):
         except Exception as e:
             logger.error(f"Failed to delete document vectors from ChromaDB: {e}")
             raise VectorStoreError(f"Vector deletion failed: {e}") from e
+
+    def get_all_chunks(self, where_filter: dict | None = None) -> list[DocumentChunk]:
+        try:
+            get_kwargs = {
+                "include": ["documents", "metadatas"]
+            }
+            if where_filter:
+                get_kwargs["where"] = where_filter
+
+            results = self.collection.get(**get_kwargs)
+            
+            chunks = []
+            if not results or not results["ids"]:
+                return chunks
+                
+            ids = results["ids"]
+            documents = results["documents"]
+            metadatas = results["metadatas"]
+            
+            for i in range(len(ids)):
+                meta = metadatas[i]
+                chunks.append(DocumentChunk(
+                    content=documents[i],
+                    source_file=meta.get("source_file", "unknown"),
+                    document_id=meta.get("document_id", "unknown"),
+                    chunk_index=int(meta.get("chunk_index", 0))
+                ))
+            return chunks
+        except Exception as e:
+            logger.error(f"ChromaDB get all chunks failed: {e}")
+            raise VectorStoreError(f"ChromaDB get failed: {e}") from e
+

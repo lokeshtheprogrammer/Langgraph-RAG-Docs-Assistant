@@ -23,7 +23,8 @@ def build_rag_graph(
     vector_store: VectorStoreBase, 
     embedding_model: EmbeddingModelBase, 
     llm_client: LLMClientBase,
-    web_search_client: WebSearchClientBase = None
+    web_search_client: WebSearchClientBase = None,
+    reranker = None
 ):
     """Factory creating the compiled self-corrective RAG LangGraph workflow."""
     
@@ -32,7 +33,7 @@ def build_rag_graph(
     
     # 2. Add nodes to graph
     workflow.add_node("query_analysis", query_analysis_node(llm_client))
-    workflow.add_node("retrieval", retrieval_node(vector_store, embedding_model))
+    workflow.add_node("retrieval", retrieval_node(vector_store, embedding_model, reranker=reranker))
     workflow.add_node("document_grading", document_grading_node(llm_client))
     workflow.add_node("generation", generation_node(llm_client))
     workflow.add_node("query_rewrite", query_rewrite_node(llm_client))

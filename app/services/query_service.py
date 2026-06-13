@@ -109,7 +109,8 @@ class QueryService:
             "graded_docs": [],
             "relevant_docs": [],
             "web_search_results": [],
-            "web_search_used": False
+            "web_search_used": False,
+            "filter_filenames": request.filter_filenames or None,
         }
 
         # Invoke LangGraph StateGraph

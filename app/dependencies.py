@@ -3,7 +3,10 @@ from app.config import settings
 from app.core.logging import logger
 from app.infrastructure.embeddings.sentence_transformers import SentenceTransformerAdapter
 from app.infrastructure.llm.adapters import get_llm_client
+from app.infrastructure.reranker.cross_encoder import CrossEncoderReranker
+from app.infrastructure.vector_store.base import VectorStoreBase
 from app.infrastructure.vector_store.chroma import ChromaVectorStore
+from app.infrastructure.vector_store.hybrid_store import HybridVectorStore
 from app.infrastructure.web_search.adapters import get_web_search_client
 from app.services.feedback_service import FeedbackService
 from app.services.ingestion_service import IngestionService
@@ -12,28 +15,39 @@ from app.workflow.graph import build_rag_graph
 
 # Singletons initialized on startup
 _embedding_model: SentenceTransformerAdapter | None = None
-_vector_store: ChromaVectorStore | None = None
+_vector_store: VectorStoreBase | None = None
+_reranker: CrossEncoderReranker | None = None
 _query_service: QueryService | None = None
 _ingestion_service: IngestionService | None = None
 _feedback_service: FeedbackService | None = None
 
 def initialize_services():
     """Build and compile all service singletons at API application startup."""
-    global _embedding_model, _vector_store, _query_service, _ingestion_service, _feedback_service
+    global _embedding_model, _vector_store, _reranker, _query_service, _ingestion_service, _feedback_service
     logger.info("Initializing application services singletons...")
     
     # 1. Embeddings & Vector store
     _embedding_model = SentenceTransformerAdapter(settings.EMBEDDING_MODEL)
-    _vector_store = ChromaVectorStore(settings.CHROMA_PERSIST_DIR)
+    chroma_store = ChromaVectorStore(settings.CHROMA_PERSIST_DIR)
+    _vector_store = HybridVectorStore(chroma_store)
+
+    # 2. Cross-Encoder Reranker
+    _reranker = CrossEncoderReranker()
     
-    # 2. LLM Provider
+    # 3. LLM Provider
     llm_client = get_llm_client(settings.LLM_PROVIDER, settings.LLM_MODEL)
 
-    # 3. Web Search Client (optional, used as fallback)
+    # 4. Web Search Client (optional, used as fallback)
     web_search_client = get_web_search_client()
     
-    # 4. LangGraph workflow StateGraph
-    compiled_graph = build_rag_graph(_vector_store, _embedding_model, llm_client, web_search_client)
+    # 5. LangGraph workflow StateGraph
+    compiled_graph = build_rag_graph(
+        _vector_store, 
+        _embedding_model, 
+        llm_client, 
+        web_search_client, 
+        reranker=_reranker
+    )
     
     # 5. Services
     _query_service = QueryService(compiled_graph)

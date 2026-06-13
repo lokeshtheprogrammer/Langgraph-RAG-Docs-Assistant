@@ -32,6 +32,7 @@ class RAGState(TypedDict):
     # Retrieval
     retrieved_docs: list[DocumentChunk]
     top_k: int
+    filter_filenames: list[str] | None  # scope search to specific document(s)
 
     # Grading
     graded_docs: list[GradedDoc]

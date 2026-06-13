@@ -12,7 +12,9 @@ class VectorStoreBase(ABC):
         pass
 
     @abstractmethod
-    def similarity_search_by_vector(self, vector: list[float], k: int = 5) -> list[DocumentChunk]:
+    def similarity_search_by_vector(
+        self, vector: list[float], k: int = 5, where_filter: dict | None = None
+    ) -> list[DocumentChunk]:
         """Perform similarity search using a query vector."""
         pass
 
@@ -20,3 +22,9 @@ class VectorStoreBase(ABC):
     def delete_by_document_id(self, document_id: str) -> None:
         """Delete all chunks belonging to a specific document ID."""
         pass
+
+    @abstractmethod
+    def get_all_chunks(self, where_filter: dict | None = None) -> list[DocumentChunk]:
+        """Retrieve all document chunks, optionally filtered by metadata."""
+        pass
+
