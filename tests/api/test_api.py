@@ -169,3 +169,39 @@ def test_conversational_query(client, mock_llm_client):
     assert "Hello! I am your Technical Documentation Copilot." in data["answer"]
     assert len(data["sources"]) == 0
 
+
+# 8. Test Retrieval-Only Fallback when all LLM providers fail
+def test_retrieval_only_fallback(client, test_vector_store, mock_embeddings, mock_llm_client):
+    from app.core.exceptions import LLMProviderError
+    from app.workflow.state import DocumentChunk
+
+    # Add mock chunks to vector store
+    mock_chunk = DocumentChunk(
+        content="Reciprocal Rank Fusion (RRF) combines vector search and BM25 rankings.",
+        source_file="rag_best_practices.md",
+        document_id="doc_rrf",
+        chunk_index=0
+    )
+    test_vector_store.add_chunks([mock_chunk], mock_embeddings.embed_documents([mock_chunk.content]))
+
+    # Override ainvoke to fail with LLMProviderError
+    async def failing_ainvoke(messages: list[dict], **kwargs) -> str:
+        raise LLMProviderError("Mock LLM Provider API down.")
+        
+    mock_llm_client.ainvoke = failing_ainvoke
+
+    payload = {
+        "question": "What is RRF?",
+        "session_id": "12345678-1234-5678-1234-567812345678"
+    }
+    response = client.post("/query", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "answer" in data
+    assert "AI generation is temporarily unavailable" in data["answer"]
+    assert "rag_best_practices.md" in data["answer"]
+    assert data["llm_provider_status"] == "retrieval_only"
+    assert len(data["sources"]) > 0
+    assert data["sources"][0]["source_file"] == "rag_best_practices.md"
+
+

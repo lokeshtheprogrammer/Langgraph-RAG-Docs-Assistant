@@ -46,9 +46,10 @@ async def startup_event():
     
     # ── Auto-Seed Corpus ──
     try:
-        from app.dependencies import get_ingestion_service
         import glob
         import os
+
+        from app.dependencies import get_ingestion_service
         ingestion_service = get_ingestion_service()
         corpus_pattern = os.path.join("corpus", "*.md")
         files = glob.glob(corpus_pattern)

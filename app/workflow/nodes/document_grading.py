@@ -1,10 +1,9 @@
-import asyncio
 import json
 import re
 
 from app.core.logging import logger
 from app.infrastructure.llm.base import LLMClientBase
-from app.workflow.prompts import BATCH_GRADING_PROMPT, GRADING_PROMPT
+from app.workflow.prompts import BATCH_GRADING_PROMPT
 from app.workflow.state import GradedDoc, RAGState
 
 
@@ -79,6 +78,37 @@ def parse_batch_grades(response: str, num_chunks: int) -> dict[int, str]:
         logger.warning(f"Batch relevance grade JSON parse failed: {e}. Raw response: {response}")
         return default_grades
 
+def has_keyword_overlap(query: str, content: str) -> bool:
+    """Check if there is any meaningful keyword overlap between the query and chunk content."""
+    # Tokenize and normalize to lowercase
+    query_words = set(re.findall(r'\w+', query.lower()))
+    content_words = set(re.findall(r'\w+', content.lower()))
+    
+    # Filter out common stop words
+    stop_words = {
+        "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren", "t",
+        "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by", "can",
+        "could", "couldn", "d", "did", "didn", "do", "does", "doesn", "doing", "don", "down", "during", "each",
+        "few", "for", "from", "further", "had", "hadn", "has", "hasn", "have", "haven", "having", "he", "her",
+        "here", "hers", "herself", "him", "himself", "his", "how", "i", "if", "in", "into", "is", "isn", "it",
+        "its", "itself", "just", "ll", "m", "ma", "me", "mightn", "more", "most", "mustn", "my", "myself",
+        "needn", "no", "nor", "not", "now", "o", "of", "off", "on", "once", "only", "or", "other", "our",
+        "ours", "ourselves", "out", "over", "own", "re", "s", "same", "shan", "she", "should", "shouldn",
+        "so", "some", "such", "than", "that", "the", "their", "theirs", "them", "themselves", "then",
+        "there", "these", "they", "this", "those", "through", "to", "too", "under", "until", "up", "ve",
+        "very", "was", "wasn", "we", "were", "weren", "what", "when", "where", "which", "while", "who",
+        "whom", "why", "will", "with", "won", "would", "wouldn", "y", "you", "your", "yours", "yourself",
+        "yourselves"
+    }
+    
+    query_keywords = query_words - stop_words
+    if not query_keywords:
+        # If the query only has stop words, default to query_words
+        query_keywords = query_words
+        
+    overlap = query_keywords.intersection(content_words)
+    return len(overlap) > 0
+
 def document_grading_node(llm: LLMClientBase):
     """Factory that creates document grading node function."""
     
@@ -117,13 +147,30 @@ def document_grading_node(llm: LLMClientBase):
         relevant_docs = [gd.chunk for gd in graded_docs if gd.grade == "relevant"]
         
         # Grader safeguard: If all chunks are graded irrelevant, let the top 2 retrieved chunks
-        # survive to prevent false negatives and avoid failing borderline queries.
+        # survive to prevent false negatives, BUT only if there is keyword overlap to suggest topical relation.
         if not relevant_docs and retrieved_docs:
-            logger.info("All chunks graded irrelevant. Safeguard triggered: keeping top 2 retrieved chunks to prevent false negatives.")
-            relevant_docs = retrieved_docs[:2]
-            # Update the grade in graded_docs for these top 2 chunks to keep states consistent
-            for i in range(min(2, len(retrieved_docs))):
-                graded_docs[i].grade = "relevant"
+            # Check overlap on the query (both original and rewritten query if available)
+            user_query = state.get("question") or ""
+            rewritten_query = state.get("rewritten_query") or ""
+            
+            # Use original query but clean up history header if present
+            if "Current question:" in user_query:
+                user_query = user_query.split("Current question:")[-1].strip()
+                
+            has_any_overlap = False
+            for doc in retrieved_docs[:2]:
+                if has_keyword_overlap(user_query, doc.content) or (rewritten_query and has_keyword_overlap(rewritten_query, doc.content)):
+                    has_any_overlap = True
+                    break
+            
+            if has_any_overlap:
+                logger.info("All chunks graded irrelevant. Safeguard triggered (keyword overlap detected): keeping top 2 retrieved chunks to prevent false negatives.")
+                relevant_docs = retrieved_docs[:2]
+                # Update the grade in graded_docs for these top 2 chunks to keep states consistent
+                for i in range(min(2, len(retrieved_docs))):
+                    graded_docs[i].grade = "relevant"
+            else:
+                logger.info("All chunks graded irrelevant. No keyword overlap detected; not applying safeguard.")
             
         logger.info(f"Grading complete: {len(relevant_docs)} out of {len(retrieved_docs)} chunks relevant.")
         

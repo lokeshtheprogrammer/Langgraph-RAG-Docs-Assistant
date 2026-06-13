@@ -198,9 +198,42 @@ st.markdown("""
     .status-online .status-dot { background: #0ea5e9; animation: pulse-sky 2s infinite; }
     .status-offline .status-dot { background: #ef4444; }
 
+    .status-healthy {
+        background: rgba(16,185,129,0.10);
+        color: #34d399 !important;
+        border: 1px solid rgba(16,185,129,0.25);
+    }
+    .status-healthy .status-dot { background: #10b981; animation: pulse-green 2s infinite; }
+    
+    .status-fallback {
+        background: rgba(245,158,11,0.10);
+        color: #fbbf24 !important;
+        border: 1px solid rgba(245,158,11,0.25);
+    }
+    .status-fallback .status-dot { background: #f59e0b; animation: pulse-amber 2s infinite; }
+    
+    .status-retrieval {
+        background: rgba(239,68,68,0.10);
+        color: #f87171 !important;
+        border: 1px solid rgba(239,68,68,0.25);
+    }
+    .status-retrieval .status-dot { background: #ef4444; animation: pulse-red 2s infinite; }
+
     @keyframes pulse-sky {
         0%, 100% { box-shadow: 0 0 0 0 rgba(14,165,233,0.5); }
         50%       { box-shadow: 0 0 0 6px rgba(14,165,233,0); }
+    }
+    @keyframes pulse-green {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
+        50%       { box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+    }
+    @keyframes pulse-amber {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.5); }
+        50%       { box-shadow: 0 0 0 6px rgba(245,158,11,0); }
+    }
+    @keyframes pulse-red {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.5); }
+        50%       { box-shadow: 0 0 0 6px rgba(239,68,68,0); }
     }
 
     /* ── Expanders in sidebar ── */
@@ -842,6 +875,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 if "debug_traces" not in st.session_state:
     st.session_state.debug_traces = []
+if "active_llm_status" not in st.session_state:
+    st.session_state.active_llm_status = "primary_groq"
 
 
 # ─── Helper Functions ────────────────────────────────────────────────────────
@@ -915,10 +950,66 @@ def render_grounding_bar(score: float):
         <div class="ground-bar-fill ground-bar-{cls}" style="width:{pct}%"></div>
     </div>
     """
+
+def get_ai_provider_pill_html(status: str | None) -> str:
+    """Format the AI provider status pill HTML based on status string."""
+    if not status:
+        status = "primary_groq"
+        
+    status = status.lower()
+    if status == "primary_groq":
+        return """
+        <div class="status-pill status-healthy" style="margin-top: 4px;">
+            <span class="status-dot"></span>
+            AI Provider: Groq
+        </div>
+        """
+    elif status in ("primary_gemini", "primary_google"):
+        return """
+        <div class="status-pill status-healthy" style="margin-top: 4px;">
+            <span class="status-dot"></span>
+            AI Provider: Gemini
+        </div>
+        """
+    elif status in ("fallback_gemini", "fallback_google"):
+        return """
+        <div class="status-pill status-fallback" style="margin-top: 4px;">
+            <span class="status-dot"></span>
+            AI Provider: Gemini (Fallback)
+        </div>
+        """
+    elif status == "fallback_groq":
+        return """
+        <div class="status-pill status-fallback" style="margin-top: 4px;">
+            <span class="status-dot"></span>
+            AI Provider: Groq (Fallback)
+        </div>
+        """
+    elif status == "retrieval_only":
+        return """
+        <div class="status-pill status-retrieval" style="margin-top: 4px;">
+            <span class="status-dot"></span>
+            Retrieval-Only Mode
+        </div>
+        """
+    else:
+        # Format custom display
+        display_name = status.replace("primary_", "").replace("fallback_", "").title()
+        is_fallback = "fallback" in status
+        cls = "status-fallback" if is_fallback else "status-healthy"
+        suffix = " (Fallback)" if is_fallback else ""
+        return f"""
+        <div class="status-pill {cls}" style="margin-top: 4px;">
+            <span class="status-dot"></span>
+            AI Provider: {display_name}{suffix}
+        </div>
+        """
+
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
 with st.sidebar:
     # Brand
     api_up = check_api_health()
+    llm_pill_html = get_ai_provider_pill_html(st.session_state.active_llm_status) if api_up else ""
     st.markdown(f"""
     <div class="brand-header">
         <span class="brand-logo">📄 RAG Assistant</span>
@@ -928,6 +1019,7 @@ with st.sidebar:
         <span class="status-dot"></span>
         {'API Connected' if api_up else 'API Offline'}
     </div>
+    {llm_pill_html}
     """, unsafe_allow_html=True)
 
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
@@ -1087,6 +1179,17 @@ total_docs = metrics.get("total_documents", 0)
 total_chunks = metrics.get("total_chunks", 0)
 
 # Page header
+status_map = {
+    "primary_groq": "Groq (Active)",
+    "primary_gemini": "Gemini (Active)",
+    "primary_google": "Gemini (Active)",
+    "fallback_gemini": "Gemini (Fallback Active)",
+    "fallback_google": "Gemini (Fallback Active)",
+    "fallback_groq": "Groq (Fallback Active)",
+    "retrieval_only": "Retrieval-Only Mode 🔴"
+}
+llm_status_text = status_map.get(st.session_state.get("active_llm_status"), "Groq (Active)")
+
 st.markdown(f"""
 <div class="page-header">
     <div class="page-title">RAG Documentation Assistant</div>
@@ -1094,7 +1197,7 @@ st.markdown(f"""
     <div class="quick-stats-row">
         <span class="quick-stat-pill">📄 Indexed Documents: <strong>{total_docs}</strong></span>
         <span class="quick-stat-pill">🧩 Chunks: <strong>{total_chunks}</strong></span>
-        <span class="quick-stat-pill">⚙️ LLM: <strong>Gemini → Groq Failover</strong></span>
+        <span class="quick-stat-pill">⚙️ LLM: <strong>{llm_status_text}</strong></span>
         <span class="quick-stat-pill">🌐 Web Search: <strong>Enabled</strong></span>
     </div>
 </div>
@@ -1257,6 +1360,9 @@ if question:
         </div>
         """, unsafe_allow_html=True)
     else:
+        if "llm_provider_status" in result:
+            st.session_state.active_llm_status = result["llm_provider_status"]
+            
         answer = result.get("answer", "No response generated.")
         sources = result.get("sources", [])
 

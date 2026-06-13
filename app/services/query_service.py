@@ -188,6 +188,11 @@ class QueryService:
         except Exception as e:
             logger.warning(f"Failed to log query execution: {e}")
 
+        # Determine active provider status
+        from app.config import settings
+        default_status = "primary_gemini" if settings.LLM_PROVIDER == "google" else "primary_groq"
+        llm_provider_status = result.get("llm_provider_status") or default_status
+
         return QueryResponse(
             answer=answer_text,
             sources=sources,
@@ -197,6 +202,7 @@ class QueryService:
             is_fallback=result.get("should_fallback", False),
             response_time_ms=duration_ms,
             session_id=request.session_id,
+            llm_provider_status=llm_provider_status,
             retrieved_chunks=retrieved_chunks,
             graded_chunks=graded_chunks,
             hallucination_score=result.get("hallucination_score"),

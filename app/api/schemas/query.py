@@ -31,6 +31,7 @@ class QueryResponse(BaseModel):
     is_fallback: bool = Field(..., description="Indicates if context search yielded no results")
     response_time_ms: int = Field(..., description="Latency tracking duration in ms")
     session_id: str | None = Field(None, description="The session identifier")
+    llm_provider_status: str = Field(..., description="Active LLM provider status (primary_groq, fallback_gemini, retrieval_only)")
     # Debug trace fields
     retrieved_chunks: list[DebugChunk] | None = Field(None, description="Raw chunks retrieved from vector store")
     graded_chunks: list[DebugChunk] | None = Field(None, description="Chunks with relevance grades")

@@ -1,4 +1,5 @@
 import asyncio
+import contextvars
 import os
 
 from google import genai
@@ -9,6 +10,9 @@ from app.config import settings
 from app.core.exceptions import LLMProviderError
 from app.core.logging import logger
 from app.infrastructure.llm.base import LLMClientBase
+
+active_provider_var = contextvars.ContextVar("active_provider_var", default=None)
+
 
 
 class GoogleLLMAdapter(LLMClientBase):
@@ -70,6 +74,8 @@ class GoogleLLMAdapter(LLMClientBase):
                         f"Gemini returned an empty response (finish_reason={reason}). "
                         "This may be due to a safety filter or content policy block."
                     )
+                if not active_provider_var.get():
+                    active_provider_var.set("primary_gemini")
                 return text
                 
             except TimeoutError:
@@ -138,6 +144,8 @@ class GroqLLMAdapter(LLMClientBase):
                         "Groq returned an empty response. "
                         "This may be due to a content policy block or token limit."
                     )
+                if not active_provider_var.get():
+                    active_provider_var.set("primary_groq")
                 return text
                 
             except TimeoutError:
@@ -163,14 +171,21 @@ class FallbackLLMAdapter(LLMClientBase):
         self.secondary = secondary
 
     async def ainvoke(self, messages: list[dict], **kwargs) -> str:
+        primary_name = "groq" if isinstance(self.primary, GroqLLMAdapter) else "gemini"
+        secondary_name = "groq" if isinstance(self.secondary, GroqLLMAdapter) else "gemini"
         try:
-            return await self.primary.ainvoke(messages, **kwargs)
+            res = await self.primary.ainvoke(messages, **kwargs)
+            active_provider_var.set(f"primary_{primary_name}")
+            return res
         except Exception as e:
-            logger.warning(f"Primary LLM client failed: {e}. Falling back to secondary LLM client...")
+            logger.warning(f"Primary LLM client ({primary_name}) failed: {e}. Falling back to secondary LLM client ({secondary_name})...")
             try:
-                return await self.secondary.ainvoke(messages, **kwargs)
+                res = await self.secondary.ainvoke(messages, **kwargs)
+                active_provider_var.set(f"fallback_{secondary_name}")
+                return res
             except Exception as sec_e:
-                logger.critical(f"Secondary LLM client also failed: {sec_e}")
+                logger.critical(f"Secondary LLM client ({secondary_name}) also failed: {sec_e}")
+                active_provider_var.set("retrieval_only")
                 raise LLMProviderError(
                     f"Both primary and secondary LLM providers failed.\n"
                     f"Primary Error: {e}\n"

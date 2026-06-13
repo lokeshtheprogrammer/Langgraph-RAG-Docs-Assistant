@@ -24,7 +24,7 @@ class CrossEncoderReranker:
         scores = self.model.predict(pairs)
         
         # Sort documents by score in descending order
-        sorted_docs_with_scores = sorted(zip(docs, scores), key=lambda x: x[1], reverse=True)
+        sorted_docs_with_scores = sorted(zip(docs, scores, strict=True), key=lambda x: x[1], reverse=True)
         
         for doc, score in sorted_docs_with_scores:
             logger.info(f"Rerank Score: {score:.4f} for chunk: {doc.source_file} #{doc.chunk_index}")

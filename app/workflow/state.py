@@ -46,6 +46,7 @@ class RAGState(TypedDict):
     # Generation
     generation: str | None
     sources: list[SourceReference]
+    llm_provider_status: str | None
 
     # Web Search Fallback
     web_search_results: list

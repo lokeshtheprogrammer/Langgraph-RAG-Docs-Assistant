@@ -1,4 +1,5 @@
 import re
+
 from rank_bm25 import BM25Okapi
 
 from app.core.logging import logger
@@ -60,7 +61,7 @@ class HybridVectorStore(VectorStoreBase):
             tokenized_query = self._tokenize(query)
             scores = bm25.get_scores(tokenized_query)
             # Pair chunks with scores and sort
-            chunk_scores = list(zip(corpus_chunks, scores))
+            chunk_scores = list(zip(corpus_chunks, scores, strict=True))
             # Sort descending by score, only keep those with score > 0
             sorted_bm25 = sorted([cs for cs in chunk_scores if cs[1] > 0], key=lambda x: x[1], reverse=True)
             bm25_results = [chunk for chunk, score in sorted_bm25]
