@@ -8,6 +8,7 @@ import requests
 import uuid
 import json
 import time
+import markdown
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 API_BASE = "http://127.0.0.1:8000"
@@ -325,6 +326,13 @@ st.markdown("""
         box-shadow: 0 6px 22px rgba(14,165,233,0.35), 0 1px 4px rgba(0,0,0,0.25);
         word-break: break-word;
     }
+    .user-bubble p {
+        margin: 0 0 8px 0;
+        color: #fff !important;
+    }
+    .user-bubble p:last-child {
+        margin-bottom: 0;
+    }
     .user-avatar {
         width: 32px; height: 32px;
         background: linear-gradient(135deg, #0369a1, #0ea5e9);
@@ -380,6 +388,54 @@ st.markdown("""
         z-index: 0;
     }
     .bot-bubble > * { position: relative; z-index: 1; }
+    .bot-bubble pre {
+        background: rgba(0, 0, 0, 0.45);
+        border: 1px solid var(--border-subtle);
+        padding: 12px;
+        border-radius: var(--radius-sm);
+        margin: 10px 0;
+        overflow-x: auto;
+        font-family: var(--font-mono);
+    }
+    .bot-bubble pre code {
+        background: transparent !important;
+        padding: 0 !important;
+        color: #e2eaf4 !important;
+        font-size: 0.85rem;
+        border: none;
+    }
+    .bot-bubble code {
+        background: rgba(14,165,233,0.1);
+        border: 1.5px solid rgba(14,165,233,0.22);
+        color: #38bdf8 !important;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+    }
+    .bot-bubble a {
+        color: #38bdf8 !important;
+        text-decoration: underline;
+    }
+    .bot-bubble a:hover {
+        color: #22d3ee !important;
+    }
+    .bot-bubble ul, .bot-bubble ol {
+        margin: 8px 0;
+        padding-left: 20px;
+        color: var(--text-primary) !important;
+    }
+    .bot-bubble li {
+        margin: 4px 0;
+        color: var(--text-primary) !important;
+    }
+    .bot-bubble p {
+        margin: 0 0 10px 0;
+        line-height: 1.7;
+    }
+    .bot-bubble p:last-child {
+        margin-bottom: 0;
+    }
 
     /* ── Source Chips ── */
     .source-row {
@@ -971,9 +1027,10 @@ BOT_AVATAR_SVG = """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 # ─── Render Chat History ─────────────────────────────────────────────────────
 for i, msg in enumerate(st.session_state.messages):
     if msg["role"] == "user":
+        user_content_html = markdown.markdown(msg["content"])
         st.markdown(f"""
         <div class="msg-row-user">
-            <div class="user-bubble">{msg["content"]}</div>
+            <div class="user-bubble">{user_content_html}</div>
             <div class="user-avatar">
                 {USER_AVATAR_SVG}
             </div>
@@ -991,13 +1048,14 @@ for i, msg in enumerate(st.session_state.messages):
             )
             sources_html = f'<div class="source-row">{chips}</div>'
 
+        content_html = markdown.markdown(content, extensions=['fenced_code'])
         st.markdown(f"""
         <div class="msg-row-bot">
             <div class="bot-avatar">
                 {BOT_AVATAR_SVG}
             </div>
             <div class="bot-bubble">
-                {content}
+                {content_html}
                 {sources_html}
             </div>
         </div>
@@ -1046,14 +1104,19 @@ for i, msg in enumerate(st.session_state.messages):
 # ─── Chat Input ──────────────────────────────────────────────────────────────
 question = st.chat_input("🧞 Ask the RAG Genie anything…", disabled=not api_up)
 
+if st.session_state.get("pending_query"):
+    question = st.session_state.pending_query
+    st.session_state.pending_query = None
+
 if question:
     st.session_state.messages.append({"role": "user", "content": question})
     st.session_state.debug_traces.append(None)
 
     # Show user bubble immediately
+    user_content_html = markdown.markdown(question)
     st.markdown(f"""
     <div class="msg-row-user">
-        <div class="user-bubble">{question}</div>
+        <div class="user-bubble">{user_content_html}</div>
         <div class="user-avatar">
             {USER_AVATAR_SVG}
         </div>
@@ -1068,12 +1131,13 @@ if question:
         answer = f"⚠ {result['error']}"
         st.session_state.messages.append({"role": "assistant", "content": answer})
         st.session_state.debug_traces.append(None)
+        answer_html = markdown.markdown(answer)
         st.markdown(f"""
         <div class="msg-row-bot">
             <div class="bot-avatar">
                 {BOT_AVATAR_SVG}
             </div>
-            <div class="bot-bubble" style="border-color:rgba(239,68,68,0.25)">{answer}</div>
+            <div class="bot-bubble" style="border-color:rgba(239,68,68,0.25)">{answer_html}</div>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -1091,13 +1155,14 @@ if question:
         st.session_state.messages.append({"role": "assistant", "content": answer})
         st.session_state.debug_traces.append(result)
 
+        answer_html = markdown.markdown(answer, extensions=['fenced_code'])
         st.markdown(f"""
         <div class="msg-row-bot">
             <div class="bot-avatar">
                 {BOT_AVATAR_SVG}
             </div>
             <div class="bot-bubble">
-                {answer}
+                {answer_html}
                 {sources_html}
             </div>
         </div>
@@ -1247,18 +1312,15 @@ if not st.session_state.messages:
             """, unsafe_allow_html=True)
 
             if st.button("💡 What is FastAPI?", use_container_width=True, key="sugg_fastapi"):
-                st.session_state.messages.append({"role": "user", "content": "What is FastAPI?"})
-                st.session_state.debug_traces.append(None)
+                st.session_state.pending_query = "What is FastAPI?"
                 st.rerun()
                 
             if st.button("💡 Summarize this resume", use_container_width=True, key="sugg_resume"):
-                st.session_state.messages.append({"role": "user", "content": "Summarize this resume"})
-                st.session_state.debug_traces.append(None)
+                st.session_state.pending_query = "Summarize this resume"
                 st.rerun()
                 
             if st.button("💡 Compare Pydantic and Dataclasses", use_container_width=True, key="sugg_compare"):
-                st.session_state.messages.append({"role": "user", "content": "Compare Pydantic and Dataclasses"})
-                st.session_state.debug_traces.append(None)
+                st.session_state.pending_query = "Compare Pydantic and Dataclasses"
                 st.rerun()
 
             st.markdown("""

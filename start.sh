@@ -13,4 +13,4 @@ python ingestion/ingest_corpus.py
 
 # Start Streamlit UI on port 7860 (Hugging Face default)
 echo "Starting Streamlit UI..."
-streamlit run streamlit_app.py --server.port 7860 --server.address 0.0.0.0
+streamlit run streamlit_app.py --server.port 7860 --server.address 0.0.0.0 --server.enableXsrfProtection false
