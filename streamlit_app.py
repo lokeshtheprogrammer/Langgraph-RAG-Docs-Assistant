@@ -958,14 +958,15 @@ USER_AVATAR_SVG = """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 </svg>"""
 
 BOT_AVATAR_SVG = """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px; height:15px; color:#38bdf8;">
-    <path d="M6 20h12" />
-    <path d="M12 20v-3" />
-    <path d="M19 13.5C19 10 16 9 12 9s-7 1-7 4.5c0 1.5 1.5 2.5 3.5 3h7c2-.5 3.5-1.5 3.5-3z" />
-    <path d="M5 11c-2 0-3-1-3-2.5S3.5 6 5 6c1 0 2 .5 2.5 1.5" />
-    <path d="M19 13.5c1.5-1 2.5-3 2-4.5" />
-    <path d="M19 4.5l1.5 1.5-1.5 1.5-1.5-1.5z" />
-    <path d="M14 2l1 1-1 1-1-1z" />
+    <path d="M6 20h12"></path>
+    <path d="M12 20v-3"></path>
+    <path d="M19 13.5C19 10 16 9 12 9s-7 1-7 4.5c0 1.5 1.5 2.5 3.5 3h7c2-.5 3.5-1.5 3.5-3z"></path>
+    <path d="M5 11c-2 0-3-1-3-2.5S3.5 6 5 6c1 0 2 .5 2.5 1.5"></path>
+    <path d="M19 13.5c1.5-1 2.5-3 2-4.5"></path>
+    <path d="M19 4.5l1.5 1.5-1.5 1.5-1.5-1.5z"></path>
+    <path d="M14 2l1 1-1 1-1-1z"></path>
 </svg>"""
+
 
 # ─── Render Chat History ─────────────────────────────────────────────────────
 for i, msg in enumerate(st.session_state.messages):
