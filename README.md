@@ -1,3 +1,13 @@
+---
+title: RAG Documentation Assistant
+emoji: 🧞
+colorFrom: blue
+colorTo: indigo
+sdk: streamlit
+app_file: streamlit_app.py
+pinned: false
+---
+
 # RAG Assistant: Technical Documentation Copilot
 
 A self-correcting Retrieval-Augmented Generation (RAG) assistant built using **FastAPI**, **LangGraph**, **ChromaDB**, and the **Gemini / Groq LLM API**.
