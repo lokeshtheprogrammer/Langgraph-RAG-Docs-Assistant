@@ -263,11 +263,38 @@ Surfaces query categories, grounding scores, and chunk retrieval lists with exac
 ## 🛠️ How To Run
 
 ### Setup Environment
+
+1. Initialize virtual environment and install dependencies:
 ```bash
 python -m venv venv
 source venv/bin/activate  # venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
+
+2. Create a `.env` file in the root directory and configure the following variables:
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `LLM_PROVIDER` | Yes | `groq` | Chosen LLM provider: `google` or `groq` |
+| `LLM_MODEL` | Yes | `llama-3.3-70b-versatile` | Model identifier string |
+| `GEMINI_API_KEY` | Conditional | None | Required if `LLM_PROVIDER=google` |
+| `GROQ_API_KEY` | Conditional | None | Required if `LLM_PROVIDER=groq` |
+| `CHROMA_PERSIST_DIR` | No | `./chroma_db` | Folder to save persistent ChromaDB vectors |
+| `SQLITE_DB_PATH` | No | `./data/app.db` | Path to SQL database file |
+| `WEB_SEARCH_ENABLED` | No | `true` | Toggle DuckDuckGo web search fallback |
+| `WEB_SEARCH_PROVIDER` | No | `duckduckgo` | Web search provider: `duckduckgo` or `tavily` |
+| `TAVILY_API_KEY` | No | None | Required only if `WEB_SEARCH_PROVIDER=tavily` |
+| `CHUNK_SIZE` | No | `768` | Text chunk character limit size |
+| `CHUNK_OVERLAP` | No | `96` | Chunk character overlap |
+
+### Key Dependencies
+
+The system leverages the following primary python libraries:
+- **FastAPI / Uvicorn:** Web server hosting REST API endpoints.
+- **LangGraph:** Cyclic state graph runtime for agent workflow routing.
+- **ChromaDB / SQLite:** Hybrid database layer storing dense vectors and session meta catalogs.
+- **Sentence-Transformers:** Local embedding model (`all-MiniLM-L6-v2`) and Cross-Encoder reranker (`ms-marco-MiniLM-L-6-v2`).
+- **Rank_BM25:** Python BM25 implementation for lexically matched document ranking.
 
 ### Start Backend
 ```bash

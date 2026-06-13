@@ -17,6 +17,8 @@
 9. [Testing Strategy](#9-testing-strategy)
 10. [How to Run Everything](#10-how-to-run-everything)
 11. [Key Design Decisions](#11-key-design-decisions)
+12. [Assumptions Made](#12-assumptions-made)
+13. [Recap: What We Accomplished](#13-recap-what-we-accomplished)
 
 ---
 
@@ -618,7 +620,18 @@ When no relevant docs are found (even after web search), the system says "I don'
 
 ---
 
-## Recap: What We Accomplished
+## 12. Assumptions Made
+
+The following technical and operational assumptions were made during development:
+1. **Network Availability for LLMs:** Although document loading, chunking, local embeddings generation, and vector retrieval run completely offline, the system assumes a stable internet connection is available to communicate with external APIs for query grading and generation (Google Gemini / Groq).
+2. **Document Formatting Standards:** The markdown ingestion parser assumes documents follow standard Markdown styling with `#` to `######` headers to calculate structural parent-child relationships properly.
+3. **Database Concurrency Limits:** We assume a single-user local evaluation environment. SQLite is selected for its lightweight, serverless nature. If scaled to a high-concurrency production workspace, a migration to PostgreSQL is assumed to be required.
+4. **Local Hardware Constraints:** We assume the runner system has sufficient CPU/memory capacity to load the sentence-transformer models (`all-MiniLM-L6-v2`) and the Cross-Encoder model (`ms-marco-MiniLM-L-6-v2`) without significant resource depletion.
+5. **Web Search Scraper Stability:** The DuckDuckGo search client uses an HTML scraping fallback. We assume DuckDuckGo's result page DOM structure remains stable. For production deployments, integrating Tavily or Google Custom Search engine API is assumed.
+
+---
+
+## 13. Recap: What We Accomplished
 
 | Task | Status |
 |------|--------|
