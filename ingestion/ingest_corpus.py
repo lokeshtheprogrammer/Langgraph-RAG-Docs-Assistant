@@ -1,12 +1,14 @@
-import os
 import asyncio
 import glob
+import os
+
 from app.config import settings
-from app.core.logging import logger
 from app.core.database import initialize_db
+from app.core.logging import logger
 from app.infrastructure.embeddings.sentence_transformers import SentenceTransformerAdapter
 from app.infrastructure.vector_store.chroma import ChromaVectorStore
 from app.services.ingestion_service import IngestionService
+
 
 async def main():
     logger.info("Starting document corpus ingestion script...")

@@ -1,6 +1,6 @@
-import shutil
 import os
-import sqlite3
+import shutil
+
 
 def reset_data():
     print("Resetting operational data...")

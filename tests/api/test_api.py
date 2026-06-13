@@ -1,4 +1,5 @@
 import io
+from unittest.mock import patch
 
 from app.workflow.state import DocumentChunk
 
@@ -81,7 +82,9 @@ def test_ingest_document_validation(client):
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
-def test_ingest_url_success(client):
+@patch('app.infrastructure.document_loader.url_loader.UrlDocumentLoader.load')
+def test_ingest_url_success(mock_load, client):
+    mock_load.return_value = "Mocked webpage content for testing."
     response = client.post("/ingest", files={"url": (None, "https://fastapi.tiangolo.com/")})
     assert response.status_code == 201
     data = response.json()
@@ -192,7 +195,8 @@ def test_retrieval_only_fallback(client, test_vector_store, mock_embeddings, moc
 
     payload = {
         "question": "What is RRF?",
-        "session_id": "12345678-1234-5678-1234-567812345678"
+        "session_id": "12345678-1234-5678-1234-567812345678",
+        "filter_filenames": ["rag_best_practices.md"]
     }
     response = client.post("/query", json=payload)
     assert response.status_code == 200

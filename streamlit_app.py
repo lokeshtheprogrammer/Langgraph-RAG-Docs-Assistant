@@ -3,12 +3,14 @@ RAG Technical Documentation Assistant — Streamlit UI
 A premium, human-centric interface for the self-corrective RAG pipeline.
 """
 
-import streamlit as st
-import requests
-import uuid
-import json
+import base64
+import os
 import time
+import uuid
+
 import markdown
+import requests
+import streamlit as st
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 API_BASE = "http://127.0.0.1:8000"
@@ -16,8 +18,8 @@ API_BASE = "http://127.0.0.1:8000"
 # ─── Auto-Start Backend & Ingestion ──────────────────────────────────────────
 @st.cache_resource
 def start_backend_and_ingest():
-    import subprocess
     import socket
+    import subprocess
     
     # Start FastAPI backend if not already running
     try:
@@ -829,8 +831,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 # ─── Chat Input Mascot Image ──────────────────────────────────────────────────
-import base64
-import os
 
 img_base64 = ""
 try:
@@ -1477,7 +1477,7 @@ if not st.session_state.messages:
         col_left, col_right = st.columns(2)
 
         with col_left:
-            st.markdown(f"""
+            st.markdown("""
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
                 <div style="width: 38px; height: 38px; background: linear-gradient(135deg, #0f172a, #1e293b); border: 1.5px solid rgba(148,163,184,0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.2); flex-shrink: 0;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:15px; height:15px; color:#94a3b8;">

@@ -1,6 +1,7 @@
-import requests
-import time
 import sys
+import time
+
+import requests
 
 BASE_URL = "http://localhost:8000"
 

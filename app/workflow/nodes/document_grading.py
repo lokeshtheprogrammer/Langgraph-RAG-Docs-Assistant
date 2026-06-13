@@ -98,7 +98,10 @@ def has_keyword_overlap(query: str, content: str) -> bool:
         "there", "these", "they", "this", "those", "through", "to", "too", "under", "until", "up", "ve",
         "very", "was", "wasn", "we", "were", "weren", "what", "when", "where", "which", "while", "who",
         "whom", "why", "will", "with", "won", "would", "wouldn", "y", "you", "your", "yours", "yourself",
-        "yourselves"
+        "yourselves",
+        # Domain-specific stop words
+        "query", "queries", "question", "questions", "assistant", "document", "documents", "doc", "docs",
+        "information", "info", "technical", "technical_docs", "answering", "answer", "answers"
     }
     
     query_keywords = query_words - stop_words

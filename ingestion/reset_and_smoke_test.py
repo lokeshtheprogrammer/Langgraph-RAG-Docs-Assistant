@@ -1,13 +1,15 @@
+import asyncio
 import os
 import shutil
 import sys
-import asyncio
+
 import httpx
 
 # Ensure workspace root is in path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.config import settings
+
 
 def reset_storage():
     print("=== Resetting Storage ===")
@@ -64,7 +66,7 @@ async def run_smoke_test():
                     "question": query,
                     "session_id": "12345678-1234-5678-1234-567812345678"
                 }
-                print(f"\n" + "-"*40)
+                print("\n" + "-"*40)
                 print(f"Querying: {query}...")
                 print("-"*40)
                 
@@ -80,7 +82,7 @@ async def run_smoke_test():
                 print("\nSources Cited:")
                 for src in res_json.get("sources", []):
                     print(f" - {src['source_file']} (Excerpt: '{src['excerpt']}')")
-                print(f"Grounding Checked: {res_json.get('is_fallback') == False}")
+                print(f"Grounding Checked: {not res_json.get('is_fallback')}")
                 
         except Exception as e:
             print(f"API request failed: {e}")
