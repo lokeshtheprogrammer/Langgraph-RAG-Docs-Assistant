@@ -17,6 +17,10 @@ def get_web_search_client() -> WebSearchClientBase | None:
         return None
 
     provider = settings.WEB_SEARCH_PROVIDER.lower()
+    if settings.TAVILY_API_KEY:
+        provider = "tavily"
+        logger.info("Tavily API key detected. Overriding web search provider to Tavily.")
+        
     logger.info(f"Initializing web search client: {provider}")
 
     if provider == "tavily":

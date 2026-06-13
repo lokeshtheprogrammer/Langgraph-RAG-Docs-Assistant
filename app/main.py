@@ -43,6 +43,23 @@ async def startup_event():
     initialize_db()
     # Initialize Service Singletons (embeddings, ChromaDB, Graph engine)
     initialize_services()
+    
+    # ── Auto-Seed Corpus ──
+    try:
+        from app.dependencies import get_ingestion_service
+        import glob
+        import os
+        ingestion_service = get_ingestion_service()
+        corpus_pattern = os.path.join("corpus", "*.md")
+        files = glob.glob(corpus_pattern)
+        if files:
+            logger.info("Running automatic document corpus check/seeding...")
+            for filepath in files:
+                await ingestion_service.ingest_file(filepath)
+            logger.info("Automatic document corpus seeding check completed.")
+    except Exception as e:
+        logger.error(f"Failed to auto-seed document corpus: {e}")
+
     logger.info("Application startup sequence completed successfully.")
 
 @app.on_event("shutdown")
