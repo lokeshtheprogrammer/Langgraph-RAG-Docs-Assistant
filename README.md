@@ -3,8 +3,7 @@ title: RAG Documentation Assistant
 emoji: 🧞
 colorFrom: blue
 colorTo: indigo
-sdk: streamlit
-app_file: streamlit_app.py
+sdk: docker
 pinned: false
 ---
 

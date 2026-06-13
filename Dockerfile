@@ -27,12 +27,18 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 COPY app/ ./app/
 COPY corpus/ ./corpus/
 COPY ingestion/ ./ingestion/
+COPY streamlit_app.py .
+COPY .streamlit/ ./.streamlit/
+COPY start.sh .
+
+# Make start script executable
+RUN chmod +x start.sh
 
 # Create persistent storage directories
 RUN mkdir -p /app/data /app/chroma_db
 
-# Expose port
-EXPOSE 8000
+# Expose port (Hugging Face default is 7860)
+EXPOSE 7860
 
-# Run FastAPI server
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run start script
+CMD ["bash", "start.sh"]
