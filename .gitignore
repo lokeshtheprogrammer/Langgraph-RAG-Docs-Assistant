@@ -50,3 +50,4 @@ data/
 chroma_db/
 scratch/
 verify_query.py
+*.pdf
