@@ -408,9 +408,15 @@ Surfaces query categories, grounding scores, and chunk retrieval lists with exac
 
 ## 🛠️ How To Run
 
-### Setup Environment
+### Clone Repository & Setup Environment
 
-1. Initialize virtual environment and install dependencies:
+1. Clone the repository and navigate to the project root:
+```bash
+git clone https://github.com/lokeshtheprogrammer/Langgraph-RAG-Docs-Assistant.git
+cd Langgraph-RAG-Docs-Assistant
+```
+
+2. Initialize virtual environment and install dependencies:
 ```bash
 python -m venv venv
 source venv/bin/activate  # venv\Scripts\activate on Windows
@@ -481,6 +487,7 @@ For a detailed review of all components, reference the following generated take-
 | Document | Purpose |
 |---|---|
 | **[REVIEWER_GUIDE.md](REVIEWER_GUIDE.md)** | 5-minute step-by-step reviewer verification guide. |
+| **[STUDENT_EXPLANATION.md](STUDENT_EXPLANATION.md)** | Detailed developer walkthrough of what RAG is, bugs fixed, and architectural choices. |
 | **[SUBMISSION_SUMMARY.md](SUBMISSION_SUMMARY.md)** | Architecture details, decisions, challenges solved, and production qualities. |
 | **[REQUIREMENTS_MAPPING.md](REQUIREMENTS_MAPPING.md)** | Explicit compliance mapping showing where each assignment requirement is implemented. |
 | **[SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)** | Full software system component architecture. |
