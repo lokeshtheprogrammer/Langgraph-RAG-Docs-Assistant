@@ -8,7 +8,7 @@ A production-grade, self-correcting Retrieval-Augmented Generation (RAG) assista
 ### 🌐 Live Deployment
 This application is fully containerized and deployed on **Hugging Face Spaces**!
 - **Live Streamlit App:** [RAG Documentation Assistant on Hugging Face Spaces](https://huggingface.co/spaces/aimprabu/RAG_Documentation_Assistant)
-
+Link:https://huggingface.co/spaces/aimprabu/RAG_Documentation_Assistant
 ---
 
 ## 🧞 Project Overview
@@ -398,6 +398,8 @@ The following features are not currently implemented in the codebase and represe
 <img width="1806" height="772" alt="Screenshot 2026-06-14 083218" src="https://github.com/user-attachments/assets/79b24ade-62c8-4104-8cfc-51ed16dfd3b3" />
 <img width="1228" height="697" alt="Screenshot 2026-06-14 083247" src="https://github.com/user-attachments/assets/855887f4-fce6-462c-a3fa-f7cc26bc1594" />
 <img width="1918" height="837" alt="Screenshot 2026-06-13 132436" src="https://github.com/user-attachments/assets/192b77ce-ee96-4d1f-a55e-b75613e26a50" />
+<img width="1836" height="915" alt="Screenshot 2026-06-14 084111" src="https://github.com/user-attachments/assets/d813551a-c30f-4c23-800b-f6c2eb822165" />
+<img width="1271" height="857" alt="Screenshot 2026-06-14 084137" src="https://github.com/user-attachments/assets/49aa136b-50ed-41fd-8272-411b0d3f86bc" />
 
 ---
 
