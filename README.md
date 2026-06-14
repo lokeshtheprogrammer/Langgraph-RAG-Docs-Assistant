@@ -393,16 +393,11 @@ The following features are not currently implemented in the codebase and represe
 ## 📸 Interface Preview
 
 ### Landing Page
-Empty-state central card containing document drag-and-drop zones and suggestions cards.
+<img width="1920" height="2137" alt="screencapture-huggingface-co-spaces-aimprabu-RAG-Documentation-Assistant-2026-06-14-08_35_25" src="https://github.com/user-attachments/assets/8a8a50be-5787-4757-b042-b97d95b82110" />
 
-### Upload Flow
-Auto-uploader shows a real-time checklist: `[✓] File uploaded`, `[✓] N chunks indexed`, and `[✓] Ready to query`.
-
-### Chat Interface
-Bot bubbles accompanied by source expanders that reveal 300-character context snippets when clicked.
-
-### Debug Panel
-Surfaces query categories, grounding scores, and chunk retrieval lists with exact ChromaDB cosine distances.
+<img width="1806" height="772" alt="Screenshot 2026-06-14 083218" src="https://github.com/user-attachments/assets/79b24ade-62c8-4104-8cfc-51ed16dfd3b3" />
+<img width="1228" height="697" alt="Screenshot 2026-06-14 083247" src="https://github.com/user-attachments/assets/855887f4-fce6-462c-a3fa-f7cc26bc1594" />
+<img width="1918" height="837" alt="Screenshot 2026-06-13 132436" src="https://github.com/user-attachments/assets/192b77ce-ee96-4d1f-a55e-b75613e26a50" />
 
 ---
 
