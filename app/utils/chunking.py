@@ -5,7 +5,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.core.logging import logger
 
 
-def split_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
+def split_text(text: str, chunk_size: int, chunk_overlap: int, filename: str | None = None) -> list[str]:
     """Split raw text into chunks using a Markdown header-aware two-pass splitter."""
     if not text:
         return []
@@ -58,8 +58,12 @@ def split_text(text: str, chunk_size: int, chunk_overlap: int) -> list[str]:
     for sec in sections:
         headers = sec["headers"]
         prefix = ""
+        if filename:
+            prefix += f"Document: {filename}\n"
         if headers:
-            prefix = f"Section: {' > '.join(headers)}\n---\n"
+            prefix += f"Section: {' > '.join(headers)}\n"
+        if prefix:
+            prefix += "---\n"
             
         content = sec["content"]
         

@@ -121,7 +121,7 @@ class IngestionService:
                 raise IngestionError("Document has no extractable text content.")
                 
             # Step 4: Chunk document text
-            text_chunks = split_text(raw_text, settings.CHUNK_SIZE, settings.CHUNK_OVERLAP)
+            text_chunks = split_text(raw_text, settings.CHUNK_SIZE, settings.CHUNK_OVERLAP, filename=filename)
             chunk_count = len(text_chunks)
             
             # Step 5: Embed chunks and save to ChromaDB

@@ -1099,15 +1099,45 @@ with st.sidebar:
         docs_data = get_documents()
         docs_list = docs_data.get("documents", [])
         if docs_list:
-            st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+            doc_options = ["Search All Documents"] + [doc.get("filename") for doc in docs_list]
+            
+            # Synchronize active_document from session_state with selectbox index
+            current_active = st.session_state.get("active_document")
+            default_idx = 0
+            if current_active and current_active in doc_options:
+                default_idx = doc_options.index(current_active)
+                
+            selected_focus = st.selectbox(
+                "Search Focus Scope:",
+                options=doc_options,
+                index=default_idx,
+                key="doc_focus_scope_select",
+                help="Select a specific file to narrow your search query, or search the entire library."
+            )
+            
+            # Store the new selection back to active_document
+            if selected_focus == "Search All Documents":
+                st.session_state.active_document = None
+            else:
+                st.session_state.active_document = selected_focus
+                
+            st.markdown("<div style='height:8px; border-bottom:1px solid rgba(255,255,255,0.06); margin-bottom:8px;'></div>", unsafe_allow_html=True)
+            
             docs_html = ""
             for doc in docs_list:
                 fname = doc.get("filename", "unknown")
                 chunks = doc.get("chunk_count", 0)
+                
+                # Dynamic visual feedback for focused document
+                is_active = (fname == st.session_state.get("active_document"))
+                badge_style = "color:#10b981;font-weight:700;border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.05);" if is_active else "color:var(--text-muted);background:rgba(255,255,255,0.03);"
+                label_style = "color:#10b981;font-weight:700;" if is_active else "color:var(--text-secondary);"
+                active_indicator = "<span style='color:#10b981;font-weight:700;margin-right:4px;'>🟢</span>" if is_active else "📄 "
+                
                 docs_html += (
-                    f"<div style='font-size:0.78rem;padding:6px 0;border-bottom:1px solid var(--border-subtle);color:var(--text-secondary);display:flex;justify-content:space-between;align-items:center'>"
-                    f"<span style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:145px;' title='{fname}'>📄 {fname}</span>"
-                    f"<span style='color:var(--text-muted);font-family:var(--font-mono);font-size:0.72rem;background:rgba(255,255,255,0.03);padding:2px 6px;border-radius:4px;'>{chunks}ch</span>"
+                    f"<div style='font-size:0.78rem;padding:6px 0;border-bottom:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center'>"
+                    f"<span style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:145px;{label_style}' title='{fname}'>{active_indicator}{fname}</span>"
+                    f"<span style='{badge_style}font-family:var(--font-mono);font-size:0.72rem;padding:2px 6px;border-radius:4px;'>{chunks}ch</span>"
                     f"</div>"
                 )
             st.markdown(
@@ -1213,18 +1243,25 @@ active_document = st.session_state.get("active_document")
 active_filter_filenames = [active_document] if active_document else None
 
 if active_document:
-    st.markdown(f"""
-    <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);
-                border-radius:10px;padding:10px 14px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
-        <span style="font-size:1.1rem;">🔍</span>
-        <div>
-            <span style="font-size:0.7rem;font-weight:700;color:#10b981;text-transform:uppercase;
-                        letter-spacing:0.5px;display:block;margin-bottom:2px;">Focused on uploaded document</span>
-            <span style="font-size:0.85rem;color:var(--text-secondary);">📄 <strong style='color:var(--text-primary);'>{active_document}</strong> 
-            &nbsp;&mdash;&nbsp;<span style='color:var(--text-muted);font-size:0.78rem;'>Only this file is being searched. Use ✕&nbsp;Search All Documents in the sidebar to search everything.</span></span>
+    col_banner_text, col_banner_btn = st.columns([0.82, 0.18])
+    with col_banner_text:
+        st.markdown(f"""
+        <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.25);
+                    border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px;height:100%;min-height:52px;">
+            <span style="font-size:1.1rem;align-self:center;">🔍</span>
+            <div>
+                <span style="font-size:0.7rem;font-weight:700;color:#10b981;text-transform:uppercase;
+                            letter-spacing:0.5px;display:block;margin-bottom:2px;">Focused on uploaded document</span>
+                <span style="font-size:0.85rem;color:var(--text-secondary);">📄 <strong style='color:var(--text-primary);'>{active_document}</strong> 
+                &nbsp;&mdash;&nbsp;<span style='color:var(--text-muted);font-size:0.78rem;'>Only this file is being searched.</span></span>
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    with col_banner_btn:
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+        if st.button("✕ Search All", key="clear_focus_scope_btn", use_container_width=True, help="Clear active document focus and search all files."):
+            st.session_state.active_document = None
+            st.rerun()
 
 # ─── Avatar SVGs ──────────────────────────────────────────────────────────────
 USER_AVATAR_SVG = """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px; color:#fff;">

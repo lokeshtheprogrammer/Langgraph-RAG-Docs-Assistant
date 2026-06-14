@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 import os
 import shutil
 import sys
@@ -6,20 +7,6 @@ import tempfile
 import pytest
 from fastapi.testclient import TestClient
 
-import app.core.database as app_db
-import app.dependencies as app_deps
-from app.config import settings
-from app.core.database import get_db_connection
-from app.dependencies import get_feedback_service, get_ingestion_service, get_query_service
-from app.infrastructure.embeddings.base import EmbeddingModelBase
-from app.infrastructure.llm.base import LLMClientBase
-from app.infrastructure.vector_store.chroma import ChromaVectorStore
-from app.main import app
-from app.services.feedback_service import FeedbackService
-from app.services.ingestion_service import IngestionService
-from app.services.query_service import QueryService
-from app.workflow.graph import build_rag_graph
-
 # Ensure workspace root is in path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -27,6 +14,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 test_dir = tempfile.mkdtemp()
 test_db_path = os.path.join(test_dir, "test_app.db")
 test_chroma_path = os.path.join(test_dir, "test_chroma_db")
+
+import app.core.database as app_db
+import app.dependencies as app_deps
+from app.config import settings
+from app.core.database import get_db_connection
 
 # Force settings properties before any app modules use them
 settings.SQLITE_DB_PATH = test_db_path
@@ -42,6 +34,16 @@ real_initialize_services = app_deps.initialize_services
 
 app_deps.initialize_services = lambda: None
 app_db.initialize_db = lambda: None
+
+from app.dependencies import get_feedback_service, get_ingestion_service, get_query_service
+from app.infrastructure.embeddings.base import EmbeddingModelBase
+from app.infrastructure.llm.base import LLMClientBase
+from app.infrastructure.vector_store.chroma import ChromaVectorStore
+from app.main import app
+from app.services.feedback_service import FeedbackService
+from app.services.ingestion_service import IngestionService
+from app.services.query_service import QueryService
+from app.workflow.graph import build_rag_graph
 
 
 @pytest.fixture(scope="session", autouse=True)

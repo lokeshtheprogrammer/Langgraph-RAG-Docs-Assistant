@@ -221,26 +221,172 @@ Ingestion handles new files in four structured stages:
 
 ---
 
-## ⚙️ Technical Decisions
+## 🏗️ Detailed System Design & Component Reasoning
 
-1. **Why LangGraph:** cyclic workflows cannot be expressed in standard LangChain LCEL. LangGraph StateGraph handles loops natively.
-2. **Why ChromaDB:** Lightweight, zero-config persistent vector database embedded directly inside Python, backed by SQLite.
-3. **Why SQLite:** Zero dependency relational engine for logging chat context and user thumb feedback.
-4. **Why Local Embeddings:** Local `sentence-transformers/all-MiniLM-L6-v2` is free, fast (~5ms), and offline-capable.
-5. **Why Gemini + Groq Fallback:** Gemini serves as a powerful primary model. In the case of API timeouts or rate limits, the system automatically falls back to Groq (Llama-3.3-70B).
+### 1. Thought Process & Architecture Reasoning
+
+#### Why This Architecture Was Chosen
+I designed this Retrieve-Augmented Generation (RAG) assistant to solve the problem of information fragmentation and hallucinations when querying dense technical documentation. A standard RAG pipeline (retrieve once, generate once) is highly fragile: it assumes the database will always return relevant chunks on the first try and that the LLM will always generate a factual answer based solely on that context. 
+
+To build a production-grade system, I implemented a **self-corrective agentic loop** that evaluates the quality of retrieval and generation at every step. This architecture ensures that:
+- Queries are refined before retrieval.
+- Irrelevant content is discarded before generation.
+- Hallucinations are actively detected and corrected.
+- The system gracefully falls back to web search when the local corpus is insufficient.
+
+#### Why Specific Technologies Were Selected
+- **FastAPI:** Exposes the API endpoints. It was selected for its high performance, native support for async execution, automated OpenAPI documentation generation, and integration with Pydantic for strict request/response data contract validation.
+- **SQLite:** Acts as a lightweight relational store. It was chosen to handle conversation history, feedback logs, and document catalog indices without requiring the overhead of a separately managed database server.
+- **ChromaDB:** A persistent vector store that runs embedded in the Python process. It provides low-latency vector indexing and metadata filtering without cloud dependencies.
+- **sentence-transformers:** Used for offline feature extraction. By running the embedding model and reranker locally, I eliminated external API call latency and network transfer costs.
+
+#### Why LangGraph Was Used Instead of a Simple Pipeline
+Traditional pipelines (built using standard LangChain Expression Language / LCEL) model data flow as a Directed Acyclic Graph (DAG). They cannot easily express feedback loops or conditional retries. Our self-correcting RAG architecture requires cyclical control flow:
+1. If the retrieved documents fail grading, we must rewrite the query and loop back to the retrieval node.
+2. If the generated response fails the hallucination check, we must regenerate the answer from the context.
+
+LangGraph's `StateGraph` provides a native runtime for state management, cyclical routing, and node execution, making it the ideal framework to orchestrate these complex logic branches.
+
+#### How the Workflow Was Designed
+The graph is designed as a state machine where a shared dictionary-like structure (`RAGState` in `app/workflow/state.py`) carries state parameters across the execution cycle:
+- **`query_analysis`** is the entry point, classifying the question type and optimizing the search query.
+- If classified as `"conversational"`, the workflow routes directly to **`generation`** to prevent unnecessary vector queries.
+- Otherwise, the state moves to **`retrieval`** and immediately proceeds to **`document_grading`**.
+- Based on grading results, a conditional edge routes the state to **`generation`** (if relevant chunks exist), **`query_rewrite`** (if no relevant chunks exist and retries remain), or **`web_search`** (if retries are exhausted).
+- From **`generation`**, the workflow transitions to **`hallucination_check`**, which conditionally routes to **`generation`** for regeneration (if ungrounded and retries remain) or terminates at `END`.
 
 ---
 
-## ⚖️ Tradeoffs & Future Improvements
+### 2. Workflow Component Reasoning
 
-### Tradeoffs
-- **Local Embedding Vector Size:** The `all-MiniLM-L6-v2` uses 384 dimensions. This is faster and requires less disk space, but has slightly lower semantic precision compared to OpenAI's 1536-dimensional embeddings.
-- **SQLite Concurrency:** SQLite does not support high concurrent write loads. If scaled to multi-tenant production, SQLite should be replaced with PostgreSQL.
+#### Query Analysis
+- **Problem Solved:** Technical questions are often conversational, poorly formatted, or include ambiguous acronyms.
+- **Why It Exists:** I implemented the query analysis node (`query_analysis_node` in `app/workflow/nodes/query_analysis.py`) to classify user intent and formulate search-optimized queries.
+- **Interactions:** Uses the `QUERY_ANALYSIS_PROMPT` to analyze the query. It outputs a `rewritten_query` and a `query_type` (e.g., `api-reference`, `how-to`, `conversational`). The routing function `route_after_analysis` uses `query_type` to bypass retrieval if the intent is purely casual conversational greeting/chit-chat.
 
-### Future Improvements
-1. **Multi-Collection Support:** Allow segregation of documents into separate collections.
-2. **Ollama Integration:** Support fully offline execution by replacing Gemini/Groq API calls with local Ollama models (e.g. Llama-3-8B).
-3. **Streaming Responses:** Support Server-Sent Events (SSE) to stream answer tokens token-by-token.
+#### Retrieval
+- **Problem Solved:** Chunks must be fetched from the database using search parameters.
+- **Why It Exists:** The retrieval node (`retrieval_node` in `app/workflow/nodes/retrieval.py`) queries the index.
+- **Interactions:** It consumes `rewritten_query` and `filter_filenames` (used to restrict search scope to a specific file, preventing cross-document noise). It calls the database layer and saves results to `retrieved_docs`.
+
+#### Hybrid Search
+- **Problem Solved:** Dense vector searches excel at semantic concepts but often miss exact keyword matches (e.g., specific variable names, error codes, or CLI parameters).
+- **Why It Exists:** I implemented a custom `HybridVectorStore` (in `app/infrastructure/vector_store/hybrid_store.py`) that wraps the ChromaDB client with a local lexical search engine.
+- **Interactions:** It queries the vector store via cosine similarity and concurrently runs a keyword search using the `rank_bm25` library's `BM25Okapi` algorithm. Results are combined and re-ranked using **Reciprocal Rank Fusion (RRF)** with a standard rank constant of `60.0` to return the top `k` most relevant candidate chunks.
+
+#### Document Grading
+- **Problem Solved:** Dense vector retrieval can return chunks that are semantically close but contain no actual answer facts.
+- **Why It Exists:** The document grading node (`document_grading_node` in `app/workflow/nodes/document_grading.py`) acts as a quality gate.
+- **Interactions:** Evaluates retrieved chunks against the question using the LLM with `GRADING_PROMPT` (or `BATCH_GRADING_PROMPT` for batch execution). It filters out irrelevant chunks and registers relevant ones in `relevant_docs`.
+
+#### Query Rewrite
+- **Problem Solved:** When retrieval returns zero relevant documents, it is typically because the query lacks the correct terms or synonyms.
+- **Why It Exists:** The query rewrite node (`query_rewrite_node` in `app/workflow/nodes/query_rewrite.py`) reformulates the query.
+- **Interactions:** Uses the `REWRITE_PROMPT` to generate a new search string, increments `retry_count`, and routes back to the `retrieval` node to restart the search cycle.
+
+#### Cross-Encoder Reranking
+- **Problem Solved:** Bi-encoder models (used for initial vector retrieval) process queries and documents independently, which can limit search precision.
+- **Why It Exists:** I implemented a reranking step within the retrieval pipeline using `CrossEncoderReranker` (in `app/infrastructure/reranker/cross_encoder.py`).
+- **Interactions:** It runs the local `cross-encoder/ms-marco-MiniLM-L-6-v2` transformer model over retrieved candidates, jointly scoring each query-document pair. This re-orders the chunks to place the highest-quality segments at the top of the context block.
+
+#### Generation
+- **Problem Solved:** Answers must be synthesized from context while adhering to specific tones and citation rules.
+- **Why It Exists:** The generation node (`generation_node` in `app/workflow/nodes/generation.py`) produces the final text response.
+- **Interactions:** Reads `relevant_docs` and formats them into a context block. It queries the LLM using the `GENERATION_PROMPT`, instructing it to structure the output according to the query type (e.g., Markdown tables for comparisons, step-by-step numbers for how-tos) and cite source documents inline.
+
+#### Hallucination Check
+- **Problem Solved:** Generative LLMs are prone to hallucinating facts not supported by the context.
+- **Why It Exists:** The hallucination check node (`hallucination_check_node` in `app/workflow/nodes/hallucination_check.py`) validates factual grounding.
+- **Interactions:** Uses the `HALLUCINATION_PROMPT` to grade grounding factuality. If the score falls below `0.7`, the check fails, and the routing logic redirects execution back to the `generation` node with the `REGEN_PROMPT` to rewrite the answer and prune unsupported claims.
+
+#### Web Search Fallback
+- **Problem Solved:** If the query is outside the database corpus, a standard RAG system fails or hallucinates.
+- **Why It Exists:** The web search node (`web_search_node` in `app/workflow/nodes/web_search.py`) executes web queries as a fallback.
+- **Interactions:** Uses `DuckDuckGoSearchClient` (in `app/infrastructure/web_search/duckduckgo.py`) to search the web, parses snippets (falling back to BeautifulSoup HTML parsing if the JSON API fails), converts them into temporary `DocumentChunk` blocks, and feeds them into the generation node using a specialized `WEB_SEARCH_GENERATION_PROMPT`.
+
+#### Conversation Memory
+- **Problem Solved:** Standard stateless APIs do not support multi-turn conversational follow-ups.
+- **Why It Exists:** I implemented a session-based chat history repository (`ChatHistoryRepository` in `app/repositories/chat_history.py`).
+- **Interactions:** Before running the graph, `QueryService.process_query` loads the last 6 message turns for the `session_id` from SQLite and prepends them as context to the user query. This enables the LLM to resolve pronouns (e.g., answering "Who created it?" after asking about FastAPI).
+
+#### Streamlit UI
+- **Problem Solved:** Developers and reviewers need an intuitive interface to test, visualize, and debug the RAG process.
+- **Why It Exists:** The Streamlit app (`streamlit_app.py`) provides a responsive dashboard.
+- **Interactions:** Connects to the backend REST API. It displays:
+  - An **Upload Flow** with a real-time ingestion checklist.
+  - A **Scope Dropdown** to restrict searches to specific documents.
+  - Collapsible **Source Previews** displaying 300-character excerpts of cited text.
+  - An expandable **Debug Panel** displaying latency, query classifications, and exact ChromaDB distance metrics.
+
+---
+
+### 3. Chunking Strategy
+
+#### Markdown Header-Aware Chunking
+I implemented a structural, header-aware chunking pipeline (`split_text` in `app/utils/chunking.py`):
+1. **Header Segmentation:** A regular expression identifies Markdown headers (`#` to `######`) and horizontal rules (`---`, `***`, `___`) to split the text into semantic sections.
+2. **Context Propagation:** The chunker maintains an active breadcrumb trail of headers (e.g., `Section: Main Topic > Sub Topic`). It prepends this hierarchical trail to the content of each section before ingestion.
+3. **Recursive Fallback:** If a single section is larger than the target size, it is split using LangChain's `RecursiveCharacterTextSplitter` with separators (`\n\n`, `\n`, ```` `, `.`, ` `). The maximum size for a split is adjusted to account for the prepended header context length.
+
+#### Configuration Parameters
+- **Chunk Size (`CHUNK_SIZE`):** `768` characters (configured in `.env.example`).
+- **Chunk Overlap (`CHUNK_OVERLAP`):** `96` characters (configured in `.env.example`).
+
+#### Rationale & Tradeoffs
+- **Why It Was Chosen:** Standard character-count splitters break mid-sentence, split code blocks, and separate table cells. Technical documentation is structurally organized; header-aware splitting ensures that related facts and procedures remain grouped.
+- **Advantages:** Prevents code block truncation, maintains context for deeply nested sections, and improves embedding vector relevance.
+- **Tradeoffs:** Prepending header context consumes extra tokens, and extremely short sections can result in small, sparse vectors.
+
+---
+
+### 4. Embedding Strategy
+
+#### sentence-transformers/all-MiniLM-L6-v2
+For embedding generation (`SentenceTransformerAdapter` in `app/infrastructure/embeddings/sentence_transformers.py`), I selected the local `all-MiniLM-L6-v2` model:
+- **Vector Dimensions:** 384 dimensions.
+- **Why It Was Chosen:** It runs entirely locally on the host machine. It is highly optimized, has a tiny disk footprint (~80MB), and offers fast inference times (~5-10ms) without recurring API costs.
+
+#### Advantages & Limitations
+- **Advantages:** Zero API dependency, high throughput, fast similarity search, and works fully offline.
+- **Limitations:** The 384-dimensional vector space is smaller than commercial models (e.g., OpenAI's 1536-dimensional `text-embedding-3-small`), which can lead to slightly lower semantic recall on complex cross-lingual queries.
+
+---
+
+### 5. Design Decisions & Tradeoffs
+
+#### ChromaDB vs. Alternatives
+I selected ChromaDB because it is an in-process database that persists vectors directly to a local folder, making setup and development simple. I rejected cloud-based vector databases (such as Pinecone) to keep the development setup self-contained and eliminate network latency during local retrieval.
+
+#### SQLite vs. PostgreSQL
+I used SQLite to manage conversation turns and ingestion catalogs because it requires zero configuration and runs serverless. The tradeoff is concurrency: SQLite locks during database writes, meaning it is not suitable for high-throughput multi-tenant environments. However, it is the ideal choice for a local prototype.
+
+#### Local Embeddings vs. API-based Embeddings
+Running embeddings locally ensures zero network latency and zero costs. The tradeoff is that the host machine must allocate RAM and CPU resources to run the transformer models.
+
+#### Gemini & Groq LLM Selection
+I implemented a primary-and-fallback LLM adapter (`FallbackLLMAdapter` in `app/infrastructure/llm/adapters.py`). Google Gemini (`gemini-2.5-flash`) serves as the primary generator due to its high reasoning quality. If the Gemini API experiences rate limits (HTTP 429) or timeouts, the adapter automatically falls back to Groq (`llama-3.3-70b-versatile` or `llama3-8b-8192`) to maintain service availability.
+
+#### Hybrid Search Blending
+I chose to implement hybrid search rather than vector-only search. Vector search matches semantic concepts, but BM25 keyword search is necessary to match exact technical tokens (such as CLI flags, port numbers, or class names). The reciprocal rank fusion (RRF) algorithm successfully balances these two ranking methods.
+
+---
+
+### 6. Assumptions Made
+
+1. **API Keys for Graph Execution:** While the embedding model and vector databases run offline locally, I assume that valid API keys (`GEMINI_API_KEY` or `GROQ_API_KEY`) are provided to execute the LLM nodes in the LangGraph agent.
+2. **Standard Document Formats:** I assume that uploaded documents use standard formats (Markdown, PDF, HTML, or Text). In particular, the Markdown chunker assumes proper heading notation (`#` to `######`) to calculate document structure.
+3. **Single-User Scope:** I assume the application will run in a single-user or low-concurrency evaluation environment, making SQLite's write-locking behavior acceptable.
+4. **Stable Page Structures for Web Scrapes:** The DuckDuckGo HTML scraping fallback assumes that DuckDuckGo's result page DOM structure remains stable for BeautifulSoup selectors.
+
+---
+
+### 7. Future Improvements
+
+The following features are not currently implemented in the codebase and represent areas for future development:
+1. **Asynchronous Ingestion Queue:** Ingesting large documents is currently synchronous and blocks the API request thread. I would implement an asynchronous task queue (using Celery or ARQ) to run chunking and embedding generation in background worker processes.
+2. **Response Streaming (SSE):** The backend API currently returns the final generated response only after the LangGraph workflow finishes execution. I would update the API to support Server-Sent Events (SSE) to stream generated text tokens in real time, reducing perceived latency.
+3. **Multi-Collection Vector Isolation:** The current vector database layer indexes all chunks into a single, global collection. I would implement multi-collection support to isolate document indexes based on project workspaces or user permissions.
+4. **Fully Offline LLM Execution:** The current LLM adapters rely on external cloud endpoints (Google / Groq). I would implement an Ollama adapter to enable fully offline, local execution of the query analysis, grading, and generation nodes.
 
 ---
 

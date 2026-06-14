@@ -23,6 +23,12 @@ def test_split_text_normal():
     # verify chunks reconstruct original text or parts of it
     assert any("Hello world" in chunk for chunk in chunks)
 
+def test_split_text_with_filename():
+    text = "Hello world. This is a simple test of splitting text. It should break it down."
+    chunks = split_text(text, chunk_size=30, chunk_overlap=5, filename="sample.pdf")
+    assert len(chunks) > 0
+    assert all("Document: sample.pdf" in chunk for chunk in chunks)
+
 # 2. Test parse_grade
 @pytest.mark.parametrize("response, expected", [
     ('{"grade": "relevant"}', "relevant"),
