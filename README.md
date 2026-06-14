@@ -408,7 +408,7 @@ Surfaces query categories, grounding scores, and chunk retrieval lists with exac
 
 ## 🛠️ How To Run
 
-### Clone Repository & Setup Environment
+### Clone Repository
 
 1. Clone the repository and navigate to the project root:
 ```bash
@@ -416,14 +416,20 @@ git clone https://github.com/lokeshtheprogrammer/Langgraph-RAG-Docs-Assistant.gi
 cd Langgraph-RAG-Docs-Assistant
 ```
 
-2. Initialize virtual environment and install dependencies:
+Select one of the following two options to run the application:
+
+---
+
+### Option 1: Run Locally (Virtual Environment)
+
+1. Initialize virtual environment and install dependencies:
 ```bash
 python -m venv venv
 source venv/bin/activate  # venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
 
-2. Create a `.env` file in the root directory and configure the following variables:
+2. Create a `.env` file in the root directory and configure the variables:
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -439,8 +445,7 @@ pip install -r requirements.txt
 | `CHUNK_SIZE` | No | `768` | Text chunk character limit size |
 | `CHUNK_OVERLAP` | No | `96` | Chunk character overlap |
 
-### Key Dependencies
-
+#### Key Dependencies
 The system leverages the following primary python libraries:
 - **FastAPI / Uvicorn:** Web server hosting REST API endpoints.
 - **LangGraph:** Cyclic state graph runtime for agent workflow routing.
@@ -448,20 +453,42 @@ The system leverages the following primary python libraries:
 - **Sentence-Transformers:** Local embedding model (`all-MiniLM-L6-v2`) and Cross-Encoder reranker (`ms-marco-MiniLM-L-6-v2`).
 - **Rank_BM25:** Python BM25 implementation for lexically matched document ranking.
 
-### Start Backend
+3. Ingest the default document corpus:
+```bash
+python ingestion/ingest_corpus.py
+```
+
+4. Start the FastAPI backend:
 ```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-### Start Streamlit Frontend
+5. Start the Streamlit frontend in a second terminal:
 ```bash
 streamlit run streamlit_app.py
 ```
 
-### Run Automated Tests
+6. Run the automated tests:
 ```bash
 venv/Scripts/python -m pytest
 ```
+
+---
+
+### Option 2: Run with Docker (Zero-Setup)
+
+1. Create a `.env` file in the root directory and populate your API keys (e.g. `GEMINI_API_KEY` or `GROQ_API_KEY`).
+
+2. Start the application stack using Docker Compose:
+```bash
+docker-compose up --build
+```
+
+3. Access the services on your host machine:
+   - **Streamlit Chat UI:** [http://localhost:7860](http://localhost:7860)
+   - **FastAPI API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+
+*(Note: Relational data directories and ChromaDB vector store are mounted as persistent volumes on the host under `./data` and `./chroma_db` respectively).*
 
 ---
 

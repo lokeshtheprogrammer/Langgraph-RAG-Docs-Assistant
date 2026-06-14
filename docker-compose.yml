@@ -8,6 +8,7 @@ services:
     container_name: rag-assistant-server
     ports:
       - "8000:8000"
+      - "7860:7860"
     volumes:
       # Mount data directories to persist vector index and SQLite database on host
       - ./data:/app/data
